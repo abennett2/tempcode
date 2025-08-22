@@ -1,152 +1,151 @@
 (function(){
-  // ===== YOU CAN LEAVE THESE BLANK; THE SCRIPT WILL AUTO-DISCOVER =====
-  // If you already know the exact captions, you can prefill these:
-  var LOOKUP_HINT  = "";  // e.g., "Project" (exact label next to the lookup)
-  var SECTION_HINT = "";  // e.g., "Rest of Form" (container header text)
-  var IDCOPY_HINT  = "";  // e.g., "Project ID (copy)" (label of your display field)
-  // =====================================================================
-
-  // progress badge
-  var badgeEl;
-  function badge(msg, color){
+  // ---- UI breadcrumb so you know this script is running ----
+  function badge(msg,color){
     try{
-      if(!badgeEl){
-        badgeEl=document.createElement("div");
-        badgeEl.style.cssText="position:fixed;top:8px;right:8px;z-index:999999;padding:8px 10px;border-radius:6px;font:12px system-ui;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)";
-        document.body.appendChild(badgeEl);
-      }
-      badgeEl.textContent=msg;
-      badgeEl.style.background=color||"#2d7";
+      var b=document.createElement("div");
+      b.textContent=msg;
+      b.style.cssText="position:fixed;top:8px;right:8px;z-index:999999;padding:8px 10px;border-radius:6px;font:12px system-ui;"+
+                      "background:"+(color||"#2d7")+";color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)";
+      document.body.appendChild(b); setTimeout(function(){ b.remove(); }, 3000);
     }catch(e){}
   }
+  badge("Open: DOM mode");
 
-  badge("Open: waiting for InfoWise API…","#666");
+  // ---- Label candidates (edit if your captions differ) ----
+  var LOOKUP_LABELS  = ["Project","Project Name","Project *","Project*"];
+  var IDCOPY_LABELS  = ["Project ID","Project ID","Project Id","Project id"];
 
-  // wait for InfoWise API (up to ~60s)
-  function wait(cb){
-    var tries=0, max=600;
-    (function poll(){
-      if(window.infowiseForm && typeof infowiseForm.getField==="function"){
-        badge("Open: InfoWise API ready");
-        cb();
-      }else if(tries++<max){
-        setTimeout(poll,100);
-      }else{
-        badge("Timeout: InfoWise API not detected","#e67");
-      }
-    })();
-  }
+  // ---- Helpers to find things by label/header ----
+  function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
 
-  function textCandidates(){
-    var out=[], seen={};
-    function add(t){
-      if(!t) return;
-      var v1=t.trim();
-      var v2=v1.replace(/\s*\*+$/,"").trim();      // strip trailing required asterisks
-      var v3=v1.replace(/\*/g,"").trim();          // strip all asterisks
-      [v1,v2,v3].forEach(function(v){
-        if(v && !seen[v]){ seen[v]=1; out.push(v); }
-      });
-    }
-    var sel='label,[role="heading"],.ms-Label,.infowise-label,h1,h2,h3,h4,th';
-    var nodes=document.querySelectorAll(sel);
-    for(var i=0;i<nodes.length;i++){ add(nodes[i].innerText||""); }
-    // user hints go to the front if provided
-    if(LOOKUP_HINT){ out.unshift(LOOKUP_HINT); }
-    if(SECTION_HINT){ out.unshift(SECTION_HINT); }
-    if(IDCOPY_HINT){ out.unshift(IDCOPY_HINT); }
-    return out;
-  }
-
-  wait(function init(){
-    // 1) find lookup
-    var project=null, projectLabel="(not found)";
-    var candidates=textCandidates();
-
-    for(var i=0;i<candidates.length;i++){
-      try{ project=infowiseForm.getField(candidates[i]); }catch(e){ project=null; }
-      if(project){ projectLabel=candidates[i]; break; }
-    }
-
-    // 2) find section by title, else by CSS class (.rest-of-form)
-    var section=null, sectionTitle="(not found)", sectionEl=null;
-    for(var j=0;j<candidates.length;j++){
-      try{ section=infowiseForm.getSection(candidates[j]); }catch(e){ section=null; }
-      if(section){ sectionTitle=candidates[j]; break; }
-    }
-    if(!section){
-      sectionEl=document.querySelector(".rest-of-form") || document.querySelector(".Rest.of.Form");
-      if(sectionEl){
-        section={
-          setVisible:function(v){ sectionEl.style.display=v?"":"none"; },
-          setReadOnly:function(ro){
-            var nl=sectionEl.querySelectorAll("input,select,textarea,button");
-            for(var k=0;k<nl.length;k++){ nl[k].disabled=!!ro; }
+  function findInputByLabel(candidates){
+    var labels = document.querySelectorAll("label,.ms-Label,.infowise-label");
+    var i, j;
+    for (i=0;i<candidates.length;i++){
+      var want = norm(candidates[i]).toLowerCase();
+      for (j=0;j<labels.length;j++){
+        var t = norm(labels[j].innerText||"").toLowerCase();
+        if (!t) continue;
+        if (t === want){
+          // 1) for= points to input/select
+          var forId = labels[j].getAttribute("for");
+          if (forId){
+            var el = document.getElementById(forId);
+            if (el) return el;
           }
-        };
-        sectionTitle="(via CSS class .rest-of-form)";
-      }
-    }
-
-    // 3) find ID display field
-    var idField=null, idLabel="(not found)";
-    // try obvious
-    var idCandidates=["Project ID (copy)","Project ID","Project Id","Project id"];
-    candidates = idCandidates.concat(candidates.filter(function(t){ return /project/i.test(t)&&/\bid\b/i.test(t); }));
-    for(var m=0;m<candidates.length;m++){
-      try{ idField=infowiseForm.getField(candidates[m]); }catch(e){ idField=null; }
-      if(idField){ idLabel=candidates[m]; break; }
-    }
-
-    badge("Resolved → Lookup: "+projectLabel+" | Section: "+sectionTitle+" | ID field: "+idLabel,
-          (project && section && idField) ? "#2d7" : "#e67");
-
-    if(!project || !section || !idField){
-      // stop here; captions not resolved
-      return;
-    }
-
-    // helpers
-    function setVisible(v){ try{ section.setVisible(!!v); }catch(e){} }
-    function setId(val){ try{ idField.setValue(val!=null?String(val):""); }catch(e){} }
-
-    function readProjectId(){
-      try{
-        if(typeof project.getLookupId==="function"){
-          var id=project.getLookupId(); if(id) return id;
-        }
-        if(typeof project.getValue==="function"){
-          var v=project.getValue(); // number|string|{id,value}|array|null
-          if(typeof v==="number") return v;
-          if(typeof v==="string" && /^\d+$/.test(v)) return parseInt(v,10);
-          if(v && typeof v==="object" && ("id" in v)) return v.id;
-          if(Object.prototype.toString.call(v)==='[object Array]' && v.length){
-            var a=v[0];
-            if(typeof a==="number") return a;
-            if(typeof a==="string" && /^\d+$/.test(a)) return parseInt(a,10);
-            if(a && typeof a==="object" && ("id" in a)) return a.id;
+          // 2) otherwise nearest input/select in same container row
+          var row = labels[j].closest(".ms-Grid-row, .row, div");
+          if (row){
+            var el2 = row.querySelector("input, select, textarea");
+            if (el2) return el2;
+          }
+          // 3) last resort: next sibling inputs
+          var sib = labels[j].nextElementSibling;
+          while (sib){
+            var tryEl = sib.querySelector && sib.querySelector("input, select, textarea");
+            if (tryEl) return tryEl;
+            sib = sib.nextElementSibling;
           }
         }
-      }catch(e){}
-      return null;
+      }
+    }
+    return null;
+  }
+
+  function findSectionElement(){
+    // Prefer CSS class we asked you to set
+    var el = document.querySelector(".rest-of-form");
+    if (el) return el;
+    // Fallback: header text
+    var heads = document.querySelectorAll('[role="heading"], h1, h2, h3, h4');
+    for (var i=0;i<heads.length;i++){
+      var t = norm(heads[i].innerText||"");
+      if (t.toLowerCase() === "rest of form"){
+        // grab the closest container that wraps the section
+        var container = heads[i].closest("section, .ms-Grid-row, .iw-container, .ms-Stack, div");
+        return container || heads[i].parentElement;
+      }
+    }
+    return null;
+  }
+
+  // ---- Read the selected lookup "ID" from whatever control is rendered ----
+  function getLookupId(lookupEl){
+    if (!lookupEl) return null;
+
+    // SELECT control? Use its value (usually numeric ID)
+    if (lookupEl.tagName === "SELECT"){
+      var v = lookupEl.value;
+      if (v && /^\d+$/.test(v)) return parseInt(v,10);
+      return v || null;
     }
 
-    function update(){
-      var id=readProjectId();
-      setId(id||"");
-      setVisible(!!id); // hide until a project is selected
-    }
+    // INPUT with data-id?
+    var dataId = lookupEl.getAttribute("data-id");
+    if (dataId && /^\d+$/.test(dataId)) return parseInt(dataId,10);
 
-    // initial + change (some builds fire change on blur)
+    // INPUT value numeric?
+    if (lookupEl.value && /^\d+$/.test(lookupEl.value)) return parseInt(lookupEl.value,10);
+
+    // Look for a hidden sibling that carries the ID (common with lookups)
+    var row = lookupEl.closest(".ms-Grid-row, .row, div") || lookupEl.parentElement;
+    if (row){
+      var hid = row.querySelector('input[type="hidden"][name*="Id"], input[type="hidden"][id*="Id"], input[type="hidden"][name*="Lookup"], input[type="hidden"][id*="Lookup"]');
+      if (hid && hid.value){
+        if (/^\d+$/.test(hid.value)) return parseInt(hid.value,10);
+        return hid.value;
+      }
+    }
+    return null;
+  }
+
+  // ---- Set a (possibly read-only) field's value ----
+  function setFieldValue(inputEl, val){
+    if (!inputEl) return;
+    var wasDisabled = inputEl.disabled;
+    try{
+      if (wasDisabled) inputEl.disabled = false;   // temporarily enable so value sticks visually
+      inputEl.value = (val==null ? "" : String(val));
+      // trigger native events so UI updates
+      var ev1 = document.createEvent("HTMLEvents"); ev1.initEvent("input", true, false); inputEl.dispatchEvent(ev1);
+      var ev2 = document.createEvent("HTMLEvents"); ev2.initEvent("change", true, false); inputEl.dispatchEvent(ev2);
+    } finally {
+      if (wasDisabled) inputEl.disabled = true;
+    }
+  }
+
+  // ---- Show/hide the section ----
+  function hideSection(sec){ if (sec) sec.style.display = "none"; }
+  function showSection(sec){ if (sec) sec.style.display = ""; }
+
+  // ---- Wire it all up ----
+  var lookupEl = findInputByLabel(LOOKUP_LABELS);
+  var idCopyEl = findInputByLabel(IDCOPY_LABELS);
+  var sectionEl = findSectionElement();
+
+  // Quick badge to confirm what we resolved
+  var ok = (!!lookupEl) && (!!idCopyEl) && (!!sectionEl);
+  badge("Resolved → lookup:"+ (!!lookupEl) +" | section:"+ (!!sectionEl) +" | idField:"+ (!!idCopyEl), ok ? "#2d7" : "#e67");
+  if (!lookupEl || !idCopyEl || !sectionEl) return; // stop until labels/class are correct
+
+  function update(){
+    var id = getLookupId(lookupEl);
+    setFieldValue(idCopyEl, id || "");
+    if (id){ showSection(sectionEl); }
+    else   { hideSection(sectionEl); }
+  }
+
+  // initial
+  update();
+
+  // listen for changes (some renderers only fire on blur)
+  lookupEl.addEventListener("change", update, true);
+  lookupEl.addEventListener("input",  update, true);
+  lookupEl.addEventListener("blur",   function(){ setTimeout(update, 0); }, true);
+
+  // small safety poll for 10s in case lookup hydrates late
+  var ticks=0, t=setInterval(function(){
     update();
-    if(typeof project.onChange==="function"){
-      project.onChange(update);
-    }else{
-      var last=null;
-      setInterval(function(){
-        var cur=readProjectId();
-        if(cur!==last){ last=cur; update(); }
-      },500);
-    }
-  });
+    if (++ticks > 20) clearInterval(t);
+  }, 500);
 })();
