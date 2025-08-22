@@ -1,11 +1,11 @@
 (function () {
   /* ====== CONFIG ====== */
   var PROJECT_LIST_TITLE = "Project Names";   // exact list title
-  var SECTION_CLASS = "rest-of-form";         // your container CSS class (keep)
+  var SECTION_CLASS = "rest-of-form";         // your container CSS class
   var SECTION_HEADER_TEXT = "Rest of Form";   // fallback by header text
   /* ==================== */
 
-  // On-form labels (exact; trailing "*" is fine)
+  // Labels on the Deliverables form
   var LABELS = {
     lookup: "Project",
     status: "Status",
@@ -27,7 +27,7 @@
         document.body.appendChild(b);
       }
       b.textContent=msg; b.style.background=color||"#2d7";
-      clearTimeout(b._t); b._t=setTimeout(function(){ b.remove(); }, 3500);
+      clearTimeout(b._t); b._t=setTimeout(function(){ b.remove(); }, 3800);
     }catch(e){}
   }
   function panel(id,title,lines){
@@ -83,7 +83,7 @@
     return null;
   }
 
-  /* ---------- read/write helpers ---------- */
+  /* ---------- read/write ---------- */
   function setControlValue(inputEl, displayEl, val){
     var text=(val==null?"":String(val));
     if (inputEl){
@@ -146,15 +146,14 @@
     return null;
   }
 
-  /* ---------- REST helpers ---------- */
-  function esc(s){ return String(s||"").replace(/'/g,"''"); }
-  function fetchItem(path, cb){
-    fetch(path, { headers: { "Accept":"application/json;odata=nometadata" } })
+  /* ---------- minimal REST (force Title path when id is null) ---------- */
+  function baseUrl(){ return (_spPageContextInfo && _spPageContextInfo.webAbsoluteUrl) || ""; }
+  function fetchJson(url, cb){
+    fetch(url, { headers: { "Accept":"application/json;odata=nometadata" } })
       .then(function(r){ if(!r.ok) throw r.status; return r.json(); })
       .then(function(j){ cb(null,j); })
       .catch(function(err){ cb(err||"error"); });
   }
-  function getBaseUrl(){ return _spPageContextInfo && _spPageContextInfo.webAbsoluteUrl ? _spPageContextInfo.webAbsoluteUrl : ""; }
 
   /* ---------- resolve elements ---------- */
   var lookupNode = findLabelNode(LABELS.lookup);
@@ -175,30 +174,23 @@
   // lock requested fields
   [statusIn, projIdIn, subByIn, subOnIn].forEach(lock);
 
-  // live selection panel
-  function showSelection(id,text){
-    panel("__sel_dbg__","Selection", "<div><b>id</b>: "+(id==null?"(null)":id)+"</div><div><b>text</b>: "+(text||"(empty)")+"</div>");
-  }
-
   function applyRecord(rec){
-    if (!rec){
-      setControlValue(statusIn, statusDisp, "");
-      setControlValue(projIdIn,  projIdDisp,  "");
-      return;
-    }
-    // choose keys dynamically (handles ProjectId vs Project_x0020_Id, etc.)
+    if (!rec){ setControlValue(statusIn,statusDisp,""); setControlValue(projIdIn,projIdDisp,""); return; }
+
+    // pick keys robustly (handles encoded spaces etc.)
     function encSpaces(s){return s?s.replace(/ /g,"_x0020_"):s;}
     function canon(s){return String(s||"").toLowerCase().replace(/_x00[0-9a-f]{2}_/g," ").replace(/[^a-z0-9]/g,"");}
     function pickKey(obj, prefs, must){
-      var keys=Object.keys(obj), i,k,enc;
-      for(i=0;i<prefs.length;i++){ k=prefs[i]; enc=encSpaces(k); if(obj.hasOwnProperty(k)) return k; if(enc && obj.hasOwnProperty(enc)) return enc; }
-      var want=canon(must||prefs[0]||"");
+      var keys=Object.keys(obj), i,k,enc,want=canon(must||prefs[0]||"");
+      for(i=0;i<prefs.length;i++){k=prefs[i];enc=encSpaces(k);if(obj.hasOwnProperty(k))return k;if(enc&&obj.hasOwnProperty(enc))return enc;}
       for(i=0;i<keys.length;i++){ if(canon(keys[i])===want) return keys[i]; }
       for(i=0;i<keys.length;i++){ if(want && canon(keys[i]).indexOf(want)>=0) return keys[i]; }
       return null;
     }
+
     var statusKey = pickKey(rec, ["Status","Project Status","ProjectStatus"], "status");
     var idKey     = pickKey(rec, ["ProjectId","Project ID","Project Id","Project_x0020_Id","ProjectID","PID","ProjectNumber","ID"], "projectid");
+
     var statusVal = statusKey ? rec[statusKey] : "";
     var bizIdVal  = idKey ? rec[idKey] : null;
     if (bizIdVal==null && rec.ID!=null) bizIdVal = rec.ID;
@@ -217,37 +209,59 @@
   function update(){
     var id   = getLookupId(lookupEl);
     var text = getLookupText(lookupEl);
-    showSelection(id, text);
 
-    // show/hide section based on any non-empty selection
+    // live selection panel
+    panel("__sel_dbg__","Selection", "<div><b>id</b>: "+(id==null?"(null)":id)+"</div><div><b>text</b>: "+(text||"(empty)")+"</div>");
+
+    // show/hide section on any selection
     if (id!=null || (text && text.length)) show(sectionEl); else { hide(sectionEl); applyRecord(null); return; }
 
-    var key=(id!=null ? "id:"+id : "t:"+text);
+    var key = (id!=null ? "id:"+id : "t:"+text);
     if (!key || key===lastKey) return;
     lastKey = key;
 
-    // Build URL and fetch
-    var base = getBaseUrl();
-    if (!base){ badge("No base URL for REST", "#e67"); return; }
+    var base = baseUrl(); if (!base){ badge("No base URL for REST","#e67"); return; }
 
     if (id!=null){
       var url = base + "/_api/web/lists/getbytitle('"+encodeURIComponent(PROJECT_LIST_TITLE)+"')/items("+id+")?$select=*";
       badge("Fetching by ID "+id+" …");
-      fetchItem(url, function(err, json){
-        if (err){ badge("Fetch by ID failed ("+err+")", "#e67"); return; }
+      fetchJson(url, function(err,json){
+        if (err){ badge("Fetch by ID failed ("+err+")","#e67"); return; }
         applyRecord(json);
       });
     } else {
-      var url2 = base + "/_api/web/lists/getbytitle('"+encodeURIComponent(PROJECT_LIST_TITLE)+"')/items?$select=*&$filter=Title eq '"+String(text).replace(/'/g,"''")+"'&$top=1";
+      // FORCE fetch by Title when id is null
+      var safe = String(text).replace(/'/g,"''");
+      var url2 = base + "/_api/web/lists/getbytitle('"+encodeURIComponent(PROJECT_LIST_TITLE)+"')/items?$select=*&$filter=Title eq '"+safe+"'&$top=1";
       badge("Fetching by Title ‘"+text+"’ …");
-      fetchItem(url2, function(err, json){
-        if (err){ badge("Fetch by Title failed ("+err+")", "#e67"); return; }
-        applyRecord(json && json.value && json.value[0] ? json.value[0] : null);
+      fetchJson(url2, function(err,json){
+        if (err){ badge("Fetch by Title failed ("+err+")","#e67"); return; }
+        var rec = json && json.value && json.value[0] ? json.value[0] : null;
+        if (!rec){
+          // as a fallback, pull a page and match client-side on likely name fields
+          var url3 = base + "/_api/web/lists/getbytitle('"+encodeURIComponent(PROJECT_LIST_TITLE)+"')/items?$select=ID,Title,Status,ProjectId,Project_x0020_Id,Project_x0020_Name&$top=200";
+          badge("Title not found; trying broader search …","#f90");
+          fetchJson(url3, function(e2,j2){
+            if (e2 || !j2 || !j2.value){ badge("Fallback search failed","#e67"); applyRecord(null); return; }
+            var lower = String(text).toLowerCase();
+            var cand = j2.value.find(function(r){
+              return (r.Title && String(r.Title).toLowerCase()===lower) ||
+                     (r.Project_x0020_Name && String(r.Project_x0020_Name).toLowerCase()===lower);
+            }) || j2.value.find(function(r){
+              // softer match if needed
+              return (r.Title && String(r.Title).toLowerCase().indexOf(lower)>=0) ||
+                     (r.Project_x0020_Name && String(r.Project_x0020_Name).toLowerCase().indexOf(lower)>=0);
+            });
+            applyRecord(cand || null);
+          });
+        } else {
+          applyRecord(rec);
+        }
       });
     }
   }
 
-  // initial + listeners + MutationObserver to catch tokenized pickers
+  // initial + listeners + observe tokenized pickers
   update();
   ["change","input","keyup"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
   lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
@@ -255,6 +269,5 @@
   if (row && window.MutationObserver){
     new MutationObserver(function(){ update(); }).observe(row, {subtree:true, childList:true, attributes:true, characterData:true});
   }
-  // small safety poll (15s)
   var ticks=0, t=setInterval(function(){ update(); if(++ticks>30) clearInterval(t); }, 500);
 })();
