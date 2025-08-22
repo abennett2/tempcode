@@ -1,35 +1,32 @@
-(function(){
-  var LOOKUP_LABELS = ["Project","Project Name","Project *","Project*"];
-  var IDCOPY_LABELS = "Project ID","Project Id","Project id"];
-  var SECTION_CLASS = "rest-of-form";
+(function () {
+  /* ========= CONFIG: set these to match your Projects list ========= */
+  var PROJECT_LIST_TITLE      = "Project Names"; // exact list title
+  var PROJECT_STATUS_INTERNAL = "Status";        // internal column name in Projects list
+  var PROJECT_BIZID_INTERNAL  = "ProjectID";     // internal column name; use "ID" to use item ID
+  /* ================================================================= */
+
+  // Form labels (exact, with tolerance for a trailing "*")
+  var LABELS = {
+    lookup:    "Project",
+    statusOut: "Status",
+    idOut:     "Project ID"
+  };
+
+  // Section targeting: prefer CSS class, fallback to header text
+  var SECTION_CLASS       = "rest-of-form";
   var SECTION_HEADER_TEXT = "Rest of Form";
 
-  function badge(msg,color){
-    try{
-      var b=document.getElementById("__iw_badge__");
-      if(!b){ b=document.createElement("div"); b.id="__iw_badge__";
-        b.style.cssText="position:fixed;top:8px;right:8px;z-index:999999;padding:8px 10px;border-radius:6px;font:12px system-ui;"+
-                        "background:"+(color||"#2d7")+";color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)";
-        document.body.appendChild(b);
-      }
-      b.textContent=msg; b.style.background=color||"#2d7";
-      clearTimeout(b._t); b._t=setTimeout(function(){ b.remove(); }, 3000);
-    }catch(e){}
-  }
-  badge("Open: live UI ready");
-
+  /* ----------------- tiny helpers ----------------- */
   function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
   function q(sel,root){ return (root||document).querySelector(sel); }
   function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
 
-  function findLabelNode(candidates){
-    var labels = qa("label,.ms-Label,.infowise-label,th,[data-field-label]");
-    for (var i=0;i<candidates.length;i++){
-      var want = norm(candidates[i]).toLowerCase();
-      for (var j=0;j<labels.length;j++){
-        var t = norm(labels[j].innerText||"").toLowerCase();
-        if (t && t === want) return labels[j];
-      }
+  function findLabelNode(exactText){
+    var want = norm(exactText).toLowerCase();
+    var nodes = qa("label,.ms-Label,.infowise-label,th,[data-field-label]");
+    for (var i=0;i<nodes.length;i++){
+      var t = norm(nodes[i].innerText||"").toLowerCase();
+      if (t === want) return nodes[i];
     }
     return null;
   }
@@ -41,9 +38,8 @@
       var el = document.getElementById(forId);
       if (el && /INPUT|SELECT|TEXTAREA/.test(el.tagName)) return el;
     }
-    var row = labelNode.closest(".ms-Grid-row, .row, .iw-control, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
+    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
     if (row){
-      // CHANGED: include modern picker affordances
       var el2 = q("input, select, textarea, [role='combobox'], [contenteditable='true']", row);
       if (el2) return el2;
     }
@@ -56,37 +52,98 @@
     return null;
   }
 
+  function findDisplayValueNode(labelNode){
+    if (!labelNode) return null;
+    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
+    var candidates = [".iw-control-value",".field-value",".ms-TextField-field",".ms-TextField-wrapper",".value","span","div"];
+    for (var i=0;i<candidates.length;i++){
+      var n = q(candidates[i], row);
+      if (!n || n===labelNode) continue;
+      if (n.querySelector && n.querySelector("label,.ms-Label,.infowise-label")) continue;
+      return n;
+    }
+    return null;
+  }
+
   function findSectionElement(){
     var el = q("."+SECTION_CLASS);
     if (el) return el;
     var heads = qa('[role="heading"], h1, h2, h3, h4');
     for (var i=0;i<heads.length;i++){
-      var t = norm(heads[i].innerText||"").toLowerCase();
-      if (t === SECTION_HEADER_TEXT.toLowerCase()){
-        var wrap = heads[i].closest("section, .ms-Grid-row, .iw-container, .ms-Stack, div");
-        return wrap || heads[i].parentElement;
+      if (norm(heads[i].innerText||"").toLowerCase() === SECTION_HEADER_TEXT.toLowerCase()){
+        return heads[i].closest("section, .ms-Grid-row, .iw-container, .ms-Stack, div") || heads[i].parentElement;
       }
     }
     return null;
   }
 
+  function setControlValue(inputEl, displayEl, val){
+    var text = (val==null ? "" : String(val));
+    if (inputEl){
+      if (inputEl.tagName === "SELECT"){
+        // set or create an option so the value displays
+        var opt = qa("option", inputEl).filter(function(o){ return o.value == text; })[0];
+        if (!opt && text){
+          opt = document.createElement("option");
+          opt.value = text; opt.text = text;
+          inputEl.appendChild(opt);
+        }
+        inputEl.value = text;
+      } else {
+        inputEl.value = text;
+      }
+      var e1=document.createEvent("HTMLEvents"); e1.initEvent("input", true, false);  inputEl.dispatchEvent(e1);
+      var e2=document.createEvent("HTMLEvents"); e2.initEvent("change",true, false);  inputEl.dispatchEvent(e2);
+    } else if (displayEl){
+      displayEl.textContent = text;
+      displayEl.style.minHeight = "1.2em";
+    }
+  }
+
+  function setInputReadOnly(el, on){
+    if (!el) return;
+    if (/INPUT|TEXTAREA/.test(el.tagName)){
+      el.readOnly = !!on; el.setAttribute("aria-readonly", on ? "true":"false");
+      el.style.background = on ? "#f5f5f5" : "";
+      el.style.pointerEvents = on ? "none" : "";
+    } else if (el.tagName === "SELECT"){
+      // avoid disabling (disabled often won't submit); block interaction visually
+      el.setAttribute("data-locked","1");
+      el.addEventListener("mousedown", function(e){ if (el.getAttribute("data-locked")==="1") e.preventDefault(); }, true);
+      el.style.pointerEvents = on ? "none" : "";
+      el.style.background = on ? "#f5f5f5" : "";
+    }
+  }
+
+  function hide(el){ if (el) el.style.display="none"; }
+  function show(el){ if (el) el.style.display=""; }
+
+  // Lookup ID/text readers (tolerant of various renderers)
+  function getLookupText(lookupEl){
+    if (!lookupEl) return "";
+    if (lookupEl.tagName === "SELECT"){
+      var i = lookupEl.selectedIndex;
+      return i>=0 ? (lookupEl.options[i].text||"").trim() : "";
+    }
+    var row = lookupEl.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div") || lookupEl.parentElement;
+    var tkn = row && (q("[data-value]", row) || q(".ms-BasePicker-text,.selected,.tagItemText,.pickerText", row));
+    if (tkn && tkn.textContent) return tkn.textContent.trim();
+    return (lookupEl.value||"").trim();
+  }
   function getLookupId(lookupEl){
     if (!lookupEl) return null;
     if (lookupEl.tagName === "SELECT"){
-      var v = lookupEl.value;
-      if (v && /^\d+$/.test(v)) return parseInt(v,10);
-      return v || null;
+      var v = lookupEl.value; return v && /^\d+$/.test(v) ? parseInt(v,10) : (v||null);
     }
     var dataId = lookupEl.getAttribute("data-id") || lookupEl.getAttribute("data-itemid") || lookupEl.getAttribute("data-entityid");
     if (dataId){ return /^\d+$/.test(dataId) ? parseInt(dataId,10) : dataId; }
     if (lookupEl.value && /^\d+$/.test(lookupEl.value)) return parseInt(lookupEl.value,10);
-
     var row = lookupEl.closest(".ms-Grid-row, .row, .iw-control, .ms-Stack, div") || lookupEl.parentElement;
     if (row){
       var hids = qa('input[type="hidden"]', row);
       for (var i=0;i<hids.length;i++){
-        var nm = (hids[i].name||"")+" "+(hids[i].id||"");
-        var val = hids[i].value||"";
+        var nm=(hids[i].name||"")+" "+(hids[i].id||"");
+        var val=hids[i].value||"";
         if (!val) continue;
         if (/\b(Id|ID|_Id|Lookup|EntityId|ItemId)\b/.test(nm)){
           return /^\d+$/.test(val) ? parseInt(val,10) : val;
@@ -96,71 +153,81 @@
     return null;
   }
 
-  function getLookupText(lookupEl){
-    if (!lookupEl) return "";
-    if (lookupEl.tagName === "SELECT"){
-      var i = lookupEl.selectedIndex;
-      return i >= 0 ? (lookupEl.options[i].text || "").trim() : "";
+  // REST helpers
+  function odataEscape(s){ return String(s||"").replace(/'/g,"''"); }
+  function fetchById(id, cb){
+    if (!id){ cb(null); return; }
+    var url = _spPageContextInfo.webAbsoluteUrl +
+      "/_api/web/lists/getbytitle('" + encodeURIComponent(PROJECT_LIST_TITLE) + "')/items(" + id + ")?" +
+      "$select=ID,Title," + PROJECT_STATUS_INTERNAL + "," + PROJECT_BIZID_INTERNAL;
+    fetch(url, { headers: { "Accept":"application/json;odata=nometadata" } })
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
+      .then(function(d){ cb(d); }).catch(function(){ cb(null); });
+  }
+  function fetchByTitle(title, cb){
+    if (!title){ cb(null); return; }
+    var url = _spPageContextInfo.webAbsoluteUrl +
+      "/_api/web/lists/getbytitle('" + encodeURIComponent(PROJECT_LIST_TITLE) + "')/items?" +
+      "$select=ID,Title," + PROJECT_STATUS_INTERNAL + "," + PROJECT_BIZID_INTERNAL + "&" +
+      "$filter=Title eq '" + odataEscape(title) + "'&$top=1";
+    fetch(url, { headers: { "Accept":"application/json;odata=nometadata" } })
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
+      .then(function(d){ cb(d && d.value && d.value[0] ? d.value[0] : null); }).catch(function(){ cb(null); });
+  }
+
+  /* ----------------- wire it up ----------------- */
+  var lookupNode   = findLabelNode(LABELS.lookup);
+  var statusNode   = findLabelNode(LABELS.statusOut);
+  var projIdNode   = findLabelNode(LABELS.idOut);
+
+  var lookupEl     = findEditorNearLabel(lookupNode);
+  var statusInput  = findEditorNearLabel(statusNode);
+  var statusDisp   = statusInput ? null : findDisplayValueNode(statusNode);
+  var projIdInput  = findEditorNearLabel(projIdNode);
+  var projIdDisp   = projIdInput ? null : findDisplayValueNode(projIdNode);
+  var sectionEl    = findSectionElement();
+
+  // Must have: lookup, section, and at least display OR input for both outputs
+  if (!lookupEl || !sectionEl || !(statusInput||statusDisp) || !(projIdInput||projIdDisp)) return;
+
+  // Keep fields Write so they save; make inputs *functionally* read-only
+  setInputReadOnly(statusInput, true);
+  setInputReadOnly(projIdInput, true);
+
+  var lastKey = "";
+
+  function applyRecord(rec){
+    if (!rec){
+      setControlValue(statusInput, statusDisp, "");
+      setControlValue(projIdInput, projIdDisp, "");
+      return;
     }
-    var row = lookupEl.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div") || lookupEl.parentElement;
-    if (row){
-      var tkn = q("[data-value], .ms-BasePicker-text, .selected, .tagItemText, .pickerText", row);
-      if (tkn && tkn.textContent) return tkn.textContent.trim();
-    }
-    return (lookupEl.value || "").trim();
+    var statusVal = rec[PROJECT_STATUS_INTERNAL];
+    var bizIdVal  = rec[PROJECT_BIZID_INTERNAL];
+    if (bizIdVal==null && rec.ID!=null) bizIdVal = rec.ID; // fallback to item ID
+    setControlValue(statusInput, statusDisp, statusVal || "");
+    setControlValue(projIdInput, projIdDisp, bizIdVal != null ? bizIdVal : "");
   }
-
-  function setReadOnlyInput(el, on){
-    if (!el) return;
-    try {
-      el.readOnly = !!on;
-      el.setAttribute("aria-readonly", on ? "true" : "false");
-      el.style.background = on ? "#f5f5f5" : "";
-      el.style.pointerEvents = on ? "none" : "";
-      var block = function(e){ if (on) e.preventDefault(); };
-      el.addEventListener("paste", block, true);
-      el.addEventListener("keydown", function(e){
-        if (!on) return;
-        var k=e.key, nav=["Tab","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"];
-        if (nav.indexOf(k)===-1) e.preventDefault();
-      }, true);
-    } catch(_){}
-  }
-
-  function setFieldValue(inputEl, val){
-    if (!inputEl) return;
-    var text = (val==null ? "" : String(val));
-    inputEl.value = text;
-    var ev1 = document.createEvent("HTMLEvents"); ev1.initEvent("input", true, false);  inputEl.dispatchEvent(ev1);
-    var ev2 = document.createEvent("HTMLEvents"); ev2.initEvent("change", true, false); inputEl.dispatchEvent(ev2);
-  }
-
-  function hide(el){ if (el) el.style.display="none"; }
-  function show(el){ if (el) el.style.display=""; }
-
-  var lookupLabel = findLabelNode(LOOKUP_LABELS);
-  var lookupEl    = findEditorNearLabel(lookupLabel);
-  var idLabel     = findLabelNode(IDCOPY_LABELS);
-  var idInputEl   = findEditorNearLabel(idLabel);
-  var sectionEl   = findSectionElement();
-
-  var ready = (!!lookupEl) && (!!idInputEl) && (!!sectionEl);
-  badge("Resolved → Lookup:"+ (!!lookupEl) +" | idInput:"+ (!!idInputEl) +" | section:"+ (!!sectionEl),
-        ready ? "#2d7" : "#e67");
-  if (!ready) return;
-
-  setReadOnlyInput(idInputEl, true);
 
   function update(){
-    var id  = getLookupId(lookupEl);
-    var txt = getLookupText(lookupEl); // CHANGED: use text as a visibility fallback
-    if (id != null) setFieldValue(idInputEl, id);
-    if (id != null || (txt && txt.length)) { show(sectionEl); }
-    else { hide(sectionEl); }
+    var id   = getLookupId(lookupEl);
+    var text = getLookupText(lookupEl);
+
+    // show/hide section based on any non-empty selection
+    if (id!=null || (text && text.length)) show(sectionEl); else { hide(sectionEl); applyRecord(null); }
+
+    var key = (id!=null ? "id:"+id : "t:"+text);
+    if (!key || key === lastKey) return;
+    lastKey = key;
+
+    if (id!=null) fetchById(id, applyRecord);
+    else if (text) fetchByTitle(text, applyRecord);
+    else applyRecord(null);
   }
 
   update();
   ["change","input","keyup"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
   lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
-  var ticks=0, t=setInterval(function(){ update(); if(++ticks>20) clearInterval(t); }, 500);
+  // small safety poll for late-hydrating pickers (15s)
+  var ticks=0, t=setInterval(function(){ update(); if(++ticks>30) clearInterval(t); }, 500);
 })();
