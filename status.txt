@@ -1,37 +1,53 @@
 (function(){
-  // >>> Edit these to EXACT captions you see on the canvas <<<
-  var CANDIDATE_LOOKUP_CAPTIONS = ["Project","Project Name","Project (lookup)"]; // try exact label(s)
-  var SECTION_TITLE     = "Rest of Form";
-  var IDCOPY_CAPTION    = "Project ID (copy)";
-
+  var LOOKUP_CAPTION  = "Project";
+  var SECTION_TITLE   = "Rest of Form";
+  var ID_CAPTION  = "Project ID";
+  
   function wait(cb){var t=0;(function p(){ if(window.infowiseForm){cb();} else if(t++<200){setTimeout(p,50);} })();}
 
   wait(function(){
     function found(x){ return x ? "YES" : "NO"; }
 
-    // Try multiple possible lookup captions until one resolves
-    var project=null, usedCaption=null;
-    for (var i=0;i<CANDIDATE_LOOKUP_CAPTIONS.length;i++){
-      try { project = infowiseForm.getField(CANDIDATE_LOOKUP_CAPTIONS[i]); } catch(e){ project=null; }
-      if (project){ usedCaption = CANDIDATE_LOOKUP_CAPTIONS[i]; break; }
+    // Lookup field
+    var project = null;
+    try { project = infowiseForm.getField(LOOKUP_CAPTION); } catch(e){}
+
+    // Section by title
+    var section = null;
+    try { section = infowiseForm.getSection(SECTION_TITLE); } catch(e){}
+
+    // Fallback: section by CSS class
+    var sectionEl = null;
+    if (!section) {
+      sectionEl = document.querySelector(".rest-of-form") || document.querySelector(".Rest.of.Form");
+      if (sectionEl) {
+        section = {
+          setVisible: function (v) { sectionEl.style.display = v ? "" : "none"; },
+          setReadOnly: function (ro) {
+            sectionEl.querySelectorAll("input, select, textarea, button").forEach(function(n){ n.disabled = !!ro; });
+          }
+        };
+      }
     }
 
-    var section = null, idField = null;
-    try { section = infowiseForm.getSection(SECTION_TITLE); } catch(e){}
+    // ID copy field
+    var idField = null;
     try { idField = infowiseForm.getField(IDCOPY_CAPTION); } catch(e){}
 
-    // Show what we actually found
     alert(
-      "Found lookup? " + found(project) + (usedCaption ? (" (caption: " + usedCaption + ")") : "") + "\n" +
-      "Found section? " + found(section) + " (title: " + SECTION_TITLE + ")\n" +
-      "Found ID field? " + found(idField) + " (caption: " + IDCOPY_CAPTION + ")"
+      'Lookup "'+LOOKUP_CAPTION+'" found? ' + found(project) + '\n' +
+      'Section by title "'+SECTION_TITLE+'" found? ' + found(section && section.setVisible) + '\n' +
+      'ID field "'+IDCOPY_CAPTION+'" found? ' + found(idField)
     );
 
-    if (!project) { alert("→ Update CANDIDATE_LOOKUP_CAPTIONS to the EXACT label shown on your form."); return; }
-    if (!section) { alert("→ Update SECTION_TITLE to the EXACT section title."); return; }
-    if (!idField) { alert("→ Update IDCOPY_CAPTION to the EXACT field caption."); return; }
+    if (!project) { alert('❌ Could not find lookup "'+LOOKUP_CAPTION+'". Change LOOKUP_CAPTION to the exact label on your form.'); return; }
+    if (!section) { alert('❌ Could not find the section. Ensure the container header is "'+SECTION_TITLE+'", OR set CSS class "rest-of-form".'); return; }
+    if (!idField) { alert('❌ Could not find ID field "'+IDCOPY_CAPTION+'". Check the exact label on the canvas.'); return; }
 
-    // Try all known ways to read a lookup ID and show it
+    function setVisible(v){ if (section && section.setVisible) section.setVisible(!!v); }
+    function setId(v){ try { idField.setValue(v != null ? String(v) : ""); } catch(e){} }
+
+    // Read the selected lookup ID (handles several shapes)
     function readProjectId(){
       try {
         if (typeof project.getLookupId === "function") {
@@ -43,7 +59,8 @@
           if (typeof v === "number") return v;
           if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v,10);
           if (Array.isArray(v) && v.length) {
-            var a=v[0]; if (typeof a==="number") return a;
+            var a=v[0];
+            if (typeof a==="number") return a;
             if (typeof a==="string" && /^\d+$/.test(a)) return parseInt(a,10);
             if (a && typeof a==="object" && ("id" in a)) return a.id;
           }
@@ -53,26 +70,23 @@
       return null;
     }
 
-    function setId(val){ try { idField.setValue(val != null ? String(val) : ""); } catch(e){} }
-    function setVisible(vis){ try { section.setVisible(!!vis); } catch(e){} }
-
-    // Initial state: hide until selected
+    // Initial: hide until a project is chosen
     (function update(){
       var id = readProjectId();
       setId(id || "");
       setVisible(!!id);
     })();
 
-    // React to changes (some builds fire on blur)
+    // React to user selection (some builds fire on blur)
     if (typeof project.onChange === "function") {
       project.onChange(function(){
         var id = readProjectId();
         setId(id || "");
         setVisible(!!id);
-        alert("Lookup changed. New ID: " + (id==null? "(none)": id)); // remove after confirming it fires
+        alert("Lookup changed. New ID: " + (id==null? "(none)": id)); // remove after confirming
       });
     } else {
-      alert("Lookup has no onChange; we’ll detect changes for ~15s via polling. Tab out of the field after selecting.");
+      alert("No onChange exposed; will detect changes for ~15s. After selecting, TAB out of the field.");
       var last=null, ticks=0, t=setInterval(function(){
         var id = readProjectId();
         if (id!==last) {
