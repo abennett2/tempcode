@@ -1,136 +1,130 @@
 (function(){
-  // --- tiny badge so you know this script started ---
-  function badge(text,color){
+  // ===== YOU CAN LEAVE THESE BLANK; THE SCRIPT WILL AUTO-DISCOVER =====
+  // If you already know the exact captions, you can prefill these:
+  var LOOKUP_HINT  = "";  // e.g., "Project" (exact label next to the lookup)
+  var SECTION_HINT = "";  // e.g., "Rest of Form" (container header text)
+  var IDCOPY_HINT  = "";  // e.g., "Project ID (copy)" (label of your display field)
+  // =====================================================================
+
+  // progress badge
+  var badgeEl;
+  function badge(msg, color){
     try{
-      var b=document.createElement("div");
-      b.textContent=text;
-      b.style.cssText="position:fixed;top:8px;right:8px;z-index:999999;padding:8px 10px;border-radius:6px;font:12px system-ui;"+
-                      "background:"+(color||"#2d7")+";color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)";
-      document.body.appendChild(b);
-      setTimeout(function(){ b.parentNode && b.parentNode.removeChild(b); }, 3500);
+      if(!badgeEl){
+        badgeEl=document.createElement("div");
+        badgeEl.style.cssText="position:fixed;top:8px;right:8px;z-index:999999;padding:8px 10px;border-radius:6px;font:12px system-ui;color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)";
+        document.body.appendChild(badgeEl);
+      }
+      badgeEl.textContent=msg;
+      badgeEl.style.background=color||"#2d7";
     }catch(e){}
   }
-  badge("Open: discovery starting");
 
-  // wait for InfoWise API
-  function wait(cb){var t=0;(function poll(){ if(window.infowiseForm){cb();} else if(t++<200){setTimeout(poll,50);} })();}
+  badge("Open: waiting for InfoWise API…","#666");
 
-  wait(function(){
-    // 1) Try to resolve the lookup/section/field automatically
-    var project=null, projectCaption=null;
-    var section=null, sectionEl=null, sectionTitle=null;
-    var idField=null, idCaption=null;
-
-    // build candidate texts from visible labels/headers
-    function collectTexts(){
-      var list=[], i, nodes = document.querySelectorAll('label,[role="heading"],.ms-Label,.infowise-label,h1,h2,h3,h4,th');
-      for(i=0;i<nodes.length;i++){
-        var t=(nodes[i].innerText||"").replace(/\s+/g," ").replace(/^\s+|\s+$/g,"");
-        if(!t) continue;
-        // add variants stripping asterisks
-        var v1=t, v2=t.replace(/\s*\*+$/,""), v3=t.replace(/\*/g,"");
-        if(list.indexOf(v1)===-1) list.push(v1);
-        if(v2 && list.indexOf(v2)===-1) list.push(v2);
-        if(v3 && list.indexOf(v3)===-1) list.push(v3);
+  // wait for InfoWise API (up to ~60s)
+  function wait(cb){
+    var tries=0, max=600;
+    (function poll(){
+      if(window.infowiseForm && typeof infowiseForm.getField==="function"){
+        badge("Open: InfoWise API ready");
+        cb();
+      }else if(tries++<max){
+        setTimeout(poll,100);
+      }else{
+        badge("Timeout: InfoWise API not detected","#e67");
       }
-      return list;
+    })();
+  }
+
+  function textCandidates(){
+    var out=[], seen={};
+    function add(t){
+      if(!t) return;
+      var v1=t.trim();
+      var v2=v1.replace(/\s*\*+$/,"").trim();      // strip trailing required asterisks
+      var v3=v1.replace(/\*/g,"").trim();          // strip all asterisks
+      [v1,v2,v3].forEach(function(v){
+        if(v && !seen[v]){ seen[v]=1; out.push(v); }
+      });
+    }
+    var sel='label,[role="heading"],.ms-Label,.infowise-label,h1,h2,h3,h4,th';
+    var nodes=document.querySelectorAll(sel);
+    for(var i=0;i<nodes.length;i++){ add(nodes[i].innerText||""); }
+    // user hints go to the front if provided
+    if(LOOKUP_HINT){ out.unshift(LOOKUP_HINT); }
+    if(SECTION_HINT){ out.unshift(SECTION_HINT); }
+    if(IDCOPY_HINT){ out.unshift(IDCOPY_HINT); }
+    return out;
+  }
+
+  wait(function init(){
+    // 1) find lookup
+    var project=null, projectLabel="(not found)";
+    var candidates=textCandidates();
+
+    for(var i=0;i<candidates.length;i++){
+      try{ project=infowiseForm.getField(candidates[i]); }catch(e){ project=null; }
+      if(project){ projectLabel=candidates[i]; break; }
     }
 
-    function tryGetFieldByTexts(texts){
-      var i,f;
-      for(i=0;i<texts.length;i++){
-        try{ f = infowiseForm.getField(texts[i]); }catch(e){ f=null; }
-        if(f) return {ctrl:f, caption:texts[i]};
-      }
-      return null;
+    // 2) find section by title, else by CSS class (.rest-of-form)
+    var section=null, sectionTitle="(not found)", sectionEl=null;
+    for(var j=0;j<candidates.length;j++){
+      try{ section=infowiseForm.getSection(candidates[j]); }catch(e){ section=null; }
+      if(section){ sectionTitle=candidates[j]; break; }
     }
-
-    function tryGetSectionByTexts(texts){
-      var i,s;
-      for(i=0;i<texts.length;i++){
-        try{ s = infowiseForm.getSection(texts[i]); }catch(e){ s=null; }
-        if(s) return {ctrl:s, title:texts[i]};
-      }
-      return null;
-    }
-
-    var texts = collectTexts();
-
-    // Prefer anything that starts with "Project"
-    var projectFirst = [];
-    var i;
-    for(i=0;i<texts.length;i++){
-      if(/^project\b/i.test(texts[i])) projectFirst.push(texts[i]);
-    }
-    // fallback: all texts
-    var projectTry = projectFirst.concat(texts);
-
-    var gotProject = tryGetFieldByTexts(projectTry);
-    if(gotProject){ project = gotProject.ctrl; projectCaption = gotProject.caption; }
-
-    // Section by exact header first
-    var gotSection = tryGetSectionByTexts(["Rest of Form"].concat(texts));
-    if(gotSection){ section = gotSection.ctrl; sectionTitle = gotSection.title; }
-
-    // Fallback: CSS class .rest-of-form or the spaced classes .Rest.of.Form
     if(!section){
-      sectionEl = document.querySelector(".rest-of-form") || document.querySelector(".Rest.of.Form");
+      sectionEl=document.querySelector(".rest-of-form") || document.querySelector(".Rest.of.Form");
       if(sectionEl){
-        section = {
-          setVisible: function(v){ sectionEl.style.display = v ? "" : "none"; },
-          setReadOnly: function(ro){
-            var nodelist = sectionEl.querySelectorAll("input,select,textarea,button");
-            for(var j=0;j<nodelist.length;j++){ nodelist[j].disabled = !!ro; }
+        section={
+          setVisible:function(v){ sectionEl.style.display=v?"":"none"; },
+          setReadOnly:function(ro){
+            var nl=sectionEl.querySelectorAll("input,select,textarea,button");
+            for(var k=0;k<nl.length;k++){ nl[k].disabled=!!ro; }
           }
         };
-        sectionTitle = "(by CSS class)";
+        sectionTitle="(via CSS class .rest-of-form)";
       }
     }
 
-    // ID field: try obvious variants first, then any caption containing "Project" and "ID"
-    var idCandidates = ["Project ID (copy)", "Project ID", "Project Id", "Project id"];
-    var gotId = tryGetFieldByTexts(idCandidates);
-    if(!gotId){
-      var idTextList = [];
-      for(i=0;i<texts.length;i++){
-        if(/project/i.test(texts[i]) && /\bid\b/i.test(texts[i])) idTextList.push(texts[i]);
-      }
-      gotId = tryGetFieldByTexts(idTextList);
+    // 3) find ID display field
+    var idField=null, idLabel="(not found)";
+    // try obvious
+    var idCandidates=["Project ID (copy)","Project ID","Project Id","Project id"];
+    candidates = idCandidates.concat(candidates.filter(function(t){ return /project/i.test(t)&&/\bid\b/i.test(t); }));
+    for(var m=0;m<candidates.length;m++){
+      try{ idField=infowiseForm.getField(candidates[m]); }catch(e){ idField=null; }
+      if(idField){ idLabel=candidates[m]; break; }
     }
-    if(gotId){ idField = gotId.ctrl; idCaption = gotId.caption; }
 
-    // Show what we resolved
-    badge("Resolved – Lookup: "+(projectCaption||"NO")+
-          " | Section: "+(sectionTitle||"NO")+
-          " | ID field: "+(idCaption||"NO"),
+    badge("Resolved → Lookup: "+projectLabel+" | Section: "+sectionTitle+" | ID field: "+idLabel,
           (project && section && idField) ? "#2d7" : "#e67");
 
     if(!project || !section || !idField){
-      // nothing more to do until we can resolve captions
+      // stop here; captions not resolved
       return;
     }
 
-    // 2) Wire minimal behavior: hide section until a project is selected; write ID immediately
+    // helpers
     function setVisible(v){ try{ section.setVisible(!!v); }catch(e){} }
     function setId(val){ try{ idField.setValue(val!=null?String(val):""); }catch(e){} }
 
     function readProjectId(){
       try{
-        if (typeof project.getLookupId === "function"){
-          var id = project.getLookupId(); if(id) return id;
+        if(typeof project.getLookupId==="function"){
+          var id=project.getLookupId(); if(id) return id;
         }
-        if (typeof project.getValue === "function"){
-          var v = project.getValue(); // number|string|{id,value}|array|null
-          if (typeof v === "number") return v;
-          if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v,10);
-          if (v && typeof v === "object"){
-            if ("id" in v) return v.id;
-          }
-          if (Object.prototype.toString.call(v)==='[object Array]' && v.length){
+        if(typeof project.getValue==="function"){
+          var v=project.getValue(); // number|string|{id,value}|array|null
+          if(typeof v==="number") return v;
+          if(typeof v==="string" && /^\d+$/.test(v)) return parseInt(v,10);
+          if(v && typeof v==="object" && ("id" in v)) return v.id;
+          if(Object.prototype.toString.call(v)==='[object Array]' && v.length){
             var a=v[0];
-            if (typeof a==="number") return a;
-            if (typeof a==="string" && /^\d+$/.test(a)) return parseInt(a,10);
-            if (a && typeof a==="object" && ("id" in a)) return a.id;
+            if(typeof a==="number") return a;
+            if(typeof a==="string" && /^\d+$/.test(a)) return parseInt(a,10);
+            if(a && typeof a==="object" && ("id" in a)) return a.id;
           }
         }
       }catch(e){}
@@ -138,22 +132,21 @@
     }
 
     function update(){
-      var id = readProjectId();
-      setId(id || "");
-      setVisible(!!id);
+      var id=readProjectId();
+      setId(id||"");
+      setVisible(!!id); // hide until a project is selected
     }
 
-    // initial + change (some builds fire on blur)
+    // initial + change (some builds fire change on blur)
     update();
-    if (project && typeof project.onChange === "function"){
+    if(typeof project.onChange==="function"){
       project.onChange(update);
-    } else {
-      // simple polling fallback so you still see updates
+    }else{
       var last=null;
       setInterval(function(){
-        var cur = readProjectId();
-        if (cur !== last){ last = cur; update(); }
-      }, 500);
+        var cur=readProjectId();
+        if(cur!==last){ last=cur; update(); }
+      },500);
     }
   });
 })();
