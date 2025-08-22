@@ -1,100 +1,126 @@
 (function () {
-  
-  var LOOKUP_FIELD_CAPTION   = "Project";               
-  var REST_SECTION_TITLE     = "Rest of Form";          
-  var ID_TARGET_CAPTION      = "Project ID (copy)";     
-  var STATUS_TARGET_CAPTION  = "Project Status (copy)";
-  var PROJECT_LIST_TITLE     = "Project Names";         
-  var STATUS_INTERNAL_NAME   = "Status";                
-  
-  // Grab handles
-  var project    = infowiseForm.getField(LOOKUP_FIELD_CAPTION);
-  var restSect   = infowiseForm.getSection(REST_SECTION_TITLE);
-  var idField    = infowiseForm.getField(ID_TARGET_CAPTION);
-  var statusField= infowiseForm.getField(STATUS_TARGET_CAPTION); 
-  var saveBtn    = infowiseForm.getButton("Save"); 
-  var addNewBtn  = infowiseForm.getButton("Add New"); 
+  var LOOKUP_CAPTION    = "Project";
+  var SECTION_TITLE     = "Rest of Form";
+  var IDCOPY_CAPTION    = "Project ID (copy)";
+  var STATUSCOPY_CAPTION= "Project Status (copy)";
+  var SAVE_BUTTON_TEXT  = "Save";
+  var ADDNEW_BUTTON_TEXT= "Add New";
+  var PROJECT_LIST_TITLE= "Project Names";
+  var STATUS_INTERNAL   = "Status";
 
-
-  function setVisible(v){ if(restSect && restSect.setVisible) restSect.setVisible(!!v); }
-  function setReadOnly(v){ if(restSect && restSect.setReadOnly) restSect.setReadOnly(!!v); }
-  function setId(v){ if(idField && idField.setValue) idField.setValue(v != null ? String(v) : ""); }
-  function setStatus(v){ if(statusField && statusField.setValue) statusField.setValue(v || ""); }
-  function setButtonsEnabled(v){
-    if (saveBtn && saveBtn.setEnabled) saveBtn.setEnabled(!!v);
-    if (addNewBtn && addNewBtn.setEnabled) addNewBtn.setEnabled(!!v);
+  function waitForInfowise(cb) {
+    var tries = 0, max = 200;
+    (function poll() {
+      if (window.infowiseForm &&
+          typeof infowiseForm.getField === "function" &&
+          typeof infowiseForm.getSection === "function") {
+        cb();
+      } else if (tries++ < max) {
+        setTimeout(poll, 50);
+      } else {
+        if (window.console && console.error) console.error("infowiseForm never became available.");
+      }
+    })();
   }
 
+  waitForInfowise(function init() {
+    var project    = infowiseForm.getField(LOOKUP_CAPTION);
+    var section    = infowiseForm.getSection(SECTION_TITLE);
+    var idField    = infowiseForm.getField(IDCOPY_CAPTION);
+    var statusField= infowiseForm.getField(STATUSCOPY_CAPTION);
+    var saveBtn    = infowiseForm.getButton(SAVE_BUTTON_TEXT);
+    var addNewBtn  = infowiseForm.getButton(ADDNEW_BUTTON_TEXT);
 
-  function applyStatusRules(statusText){
-    var s = (statusText || "").toLowerCase();
-    if (s === "draft" || s === "inactive") {
-      setVisible(false);
-      setButtonsEnabled(false);
-    } else if (s === "closed") {
-      setVisible(true);
-      setReadOnly(true);
-      setButtonsEnabled(true);
-    } else {
-      // Active / anything else
+    function setVisible(v){ if(section && section.setVisible)     section.setVisible(!!v); }
+    function setReadOnly(v){ if(section && section.setReadOnly)   section.setReadOnly(!!v); }
+    function setId(v){ if(idField && idField.setValue)            idField.setValue(v != null ? String(v) : ""); }
+    function setStatus(v){ if(statusField && statusField.setValue)statusField.setValue(v || ""); }
+    function setButtonsEnabled(on){
+      if (saveBtn   && saveBtn.setEnabled)   saveBtn.setEnabled(!!on);
+      if (addNewBtn && addNewBtn.setEnabled) addNewBtn.setEnabled(!!on);
+    }
+
+    function readProjectId(){
+      try {
+        if (project && typeof project.getLookupId === "function") {
+          var id = project.getLookupId();
+          if (id) return id;
+        }
+        if (project && typeof project.getValue === "function") {
+          var v = project.getValue(); // number | string | {id, value} | null
+          if (typeof v === "number") return v;
+          if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v, 10);
+          if (v && typeof v === "object" && ("id" in v)) return v.id;
+        }
+      } catch(e){}
+      return null;
+    }
+
+    function fetchStatusById(id){
+      return new Promise(function(resolve){
+        if (!id) return resolve("");
+        var url = _spPageContextInfo.webAbsoluteUrl +
+          "/_api/web/lists/getbytitle('" + encodeURIComponent(PROJECT_LIST_TITLE) + "')/items(" + id + ")?" +
+          "$select=ID," + STATUS_INTERNAL;
+        fetch(url, { headers: { "Accept": "application/json;odata=nometadata" } })
+          .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
+          .then(function(d){ resolve(d[STATUS_INTERNAL] || ""); })
+          .catch(function(){ resolve(""); });
+      });
+    }
+
+    function applyStatusRules(statusText){
+      var s = (statusText || "").toLowerCase();
+      if (s === "draft" || s === "inactive") {
+        setVisible(false);
+        setReadOnly(false);
+        setButtonsEnabled(false);
+      } else if (s === "closed") {
+        setVisible(true);
+        setReadOnly(true);
+        setButtonsEnabled(true);
+      } else {
+        // Active / anything else
+        setVisible(true);
+        setReadOnly(false);
+        setButtonsEnabled(true);
+      }
+    }
+
+    function updateUI(){
+      var projId = readProjectId();
+      setId(projId || "");
+
+      if (!projId) {
+        setVisible(false);
+        setReadOnly(false);
+        setStatus("");
+        setButtonsEnabled(false);
+        return;
+      }
+
       setVisible(true);
       setReadOnly(false);
       setButtonsEnabled(true);
-    }
-  }
 
-
-  function updateUI(){
-    if (!project || !project.getLookupId) return;
-
-
-    var projId = project.getLookupId();
-    setId(projId || "");
-
-
-    // No selection yet
-    if (!projId){
-      setVisible(false);
-      setReadOnly(false);
-      setStatus("");
-      setButtonsEnabled(false);
-      return;
-    }
-
-
-    // Show by default once we have a selection
-    setVisible(true);
-    setReadOnly(false);
-    setButtonsEnabled(true);
-
-
-    // 
-    if (!statusField) return; // if you didn't add a status display field, we're done
-
-
-    var url = _spPageContextInfo.webAbsoluteUrl +
-      "/_api/web/lists/getbytitle('" + encodeURIComponent(PROJECT_LIST_TITLE) + "')/items(" + projId + ")?" +
-      "$select=ID," + STATUS_INTERNAL_NAME;
-
-
-    fetch(url, { headers: { "Accept": "application/json;odata=nometadata" } })
-      .then(function(r){ return r.ok ? r.json() : Promise.reject(r.statusText); })
-      .then(function(d){
-        var status = d[STATUS_INTERNAL_NAME] || "";
+      fetchStatusById(projId).then(function(status){
         setStatus(status);
         applyStatusRules(status);
-      })
-      .catch(function(){
-        setStatus("");
       });
-  }
+    }
 
-
-  updateUI();
-  if (project && project.onChange) project.onChange(updateUI);
+    updateUI();
+    if (project && typeof project.onChange === "function") {
+      project.onChange(updateUI);
+    } else {
+      var last = null, ticks = 0, t = setInterval(function(){
+        var curr = readProjectId();
+        if (curr !== last) { last = curr; updateUI(); }
+        if (++ticks > 60) clearInterval(t); // ~15s
+      }, 250);
+    }
+  });
 })();
-
-
 
 
 -----------
