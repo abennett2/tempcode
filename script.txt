@@ -1,0 +1,9 @@
+/* Hide the little footer/“column name” line under fields */
+.iw-control .iw-control-name,
+.iw-control .ms-TextField-description,
+.iw-control .ms-TextField-fieldDescription,
+.iw-control .field-description,
+.iw-control .iw-description,
+.iw-control small.field-name {
+  display: none !important;
+}
