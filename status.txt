@@ -1,10 +1,9 @@
 (function(){
   var LOOKUP_LABELS = ["Project","Project Name","Project *","Project*"];
-  var IDCOPY_LABELS = ["Project ID","Project ID","Project Id","Project id"];
-  var STATUS_LABELS = ["Status","Status","Status","Status"];
-  var SECTION_CLASS = "rest-of-form"; // set your container's CSS class to this (no spaces)
-  var SECTION_HEADER_TEXT = "Rest of Form"; // fallback by visible header if no class
-  
+  var IDCOPY_LABELS = "Project ID","Project Id","Project id"];
+  var SECTION_CLASS = "rest-of-form";
+  var SECTION_HEADER_TEXT = "Rest of Form";
+
   function badge(msg,color){
     try{
       var b=document.getElementById("__iw_badge__");
@@ -44,12 +43,13 @@
     }
     var row = labelNode.closest(".ms-Grid-row, .row, .iw-control, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
     if (row){
-      var el2 = q("input, select, textarea", row);
+      // CHANGED: include modern picker affordances
+      var el2 = q("input, select, textarea, [role='combobox'], [contenteditable='true']", row);
       if (el2) return el2;
     }
     var sib = labelNode.nextElementSibling;
     while (sib){
-      var el3 = sib.querySelector && sib.querySelector("input, select, textarea");
+      var el3 = sib.querySelector && sib.querySelector("input, select, textarea, [role='combobox'], [contenteditable='true']");
       if (el3) return el3;
       sib = sib.nextElementSibling;
     }
@@ -77,19 +77,37 @@
       if (v && /^\d+$/.test(v)) return parseInt(v,10);
       return v || null;
     }
-    var dataId = lookupEl.getAttribute("data-id");
-    if (dataId && /^\d+$/.test(dataId)) return parseInt(dataId,10);
+    var dataId = lookupEl.getAttribute("data-id") || lookupEl.getAttribute("data-itemid") || lookupEl.getAttribute("data-entityid");
+    if (dataId){ return /^\d+$/.test(dataId) ? parseInt(dataId,10) : dataId; }
     if (lookupEl.value && /^\d+$/.test(lookupEl.value)) return parseInt(lookupEl.value,10);
 
     var row = lookupEl.closest(".ms-Grid-row, .row, .iw-control, .ms-Stack, div") || lookupEl.parentElement;
     if (row){
-      var hid = q('input[type="hidden"][name*="Id"], input[type="hidden"][id*="Id"], input[type="hidden"][name*="Lookup"], input[type="hidden"][id*="Lookup"]', row);
-      if (hid && hid.value){
-        if (/^\d+$/.test(hid.value)) return parseInt(hid.value,10);
-        return hid.value;
+      var hids = qa('input[type="hidden"]', row);
+      for (var i=0;i<hids.length;i++){
+        var nm = (hids[i].name||"")+" "+(hids[i].id||"");
+        var val = hids[i].value||"";
+        if (!val) continue;
+        if (/\b(Id|ID|_Id|Lookup|EntityId|ItemId)\b/.test(nm)){
+          return /^\d+$/.test(val) ? parseInt(val,10) : val;
+        }
       }
     }
     return null;
+  }
+
+  function getLookupText(lookupEl){
+    if (!lookupEl) return "";
+    if (lookupEl.tagName === "SELECT"){
+      var i = lookupEl.selectedIndex;
+      return i >= 0 ? (lookupEl.options[i].text || "").trim() : "";
+    }
+    var row = lookupEl.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div") || lookupEl.parentElement;
+    if (row){
+      var tkn = q("[data-value], .ms-BasePicker-text, .selected, .tagItemText, .pickerText", row);
+      if (tkn && tkn.textContent) return tkn.textContent.trim();
+    }
+    return (lookupEl.value || "").trim();
   }
 
   function setReadOnlyInput(el, on){
@@ -103,8 +121,7 @@
       el.addEventListener("paste", block, true);
       el.addEventListener("keydown", function(e){
         if (!on) return;
-        var k=e.key;
-        var nav = ["Tab","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"];
+        var k=e.key, nav=["Tab","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"];
         if (nav.indexOf(k)===-1) e.preventDefault();
       }, true);
     } catch(_){}
@@ -114,7 +131,6 @@
     if (!inputEl) return;
     var text = (val==null ? "" : String(val));
     inputEl.value = text;
-    // trigger UI updates
     var ev1 = document.createEvent("HTMLEvents"); ev1.initEvent("input", true, false);  inputEl.dispatchEvent(ev1);
     var ev2 = document.createEvent("HTMLEvents"); ev2.initEvent("change", true, false); inputEl.dispatchEvent(ev2);
   }
@@ -125,26 +141,26 @@
   var lookupLabel = findLabelNode(LOOKUP_LABELS);
   var lookupEl    = findEditorNearLabel(lookupLabel);
   var idLabel     = findLabelNode(IDCOPY_LABELS);
-  var statusLabel = findLabelNode(STATUS_LABELS);
   var idInputEl   = findEditorNearLabel(idLabel);
-  var statusInputEl = findEditorNearLabel(statusLabel);
   var sectionEl   = findSectionElement();
 
-  var ready = (!!lookupEl) && (!!idInputEl) && (!!statusInputEl) && (!!sectionEl);
-  badge("Resolved → Lookup: "+ (!!lookupEl) +" | idInput: "+ (!!idInputEl) +" | statusInput: "+ (!!statusInputEl) +" | section: "+ (!!sectionEl), ready ? "#2d7" : "#e67");
+  var ready = (!!lookupEl) && (!!idInputEl) && (!!sectionEl);
+  badge("Resolved → Lookup:"+ (!!lookupEl) +" | idInput:"+ (!!idInputEl) +" | section:"+ (!!sectionEl),
+        ready ? "#2d7" : "#e67");
   if (!ready) return;
 
   setReadOnlyInput(idInputEl, true);
 
   function update(){
-    var id = getLookupId(lookupEl);
-    setFieldValue(idInputEl, id || "");
-    if (id){ show(sectionEl); } else { hide(sectionEl); }
+    var id  = getLookupId(lookupEl);
+    var txt = getLookupText(lookupEl); // CHANGED: use text as a visibility fallback
+    if (id != null) setFieldValue(idInputEl, id);
+    if (id != null || (txt && txt.length)) { show(sectionEl); }
+    else { hide(sectionEl); }
   }
 
   update();
-  ["change","input"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
+  ["change","input","keyup"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
   lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
-
   var ticks=0, t=setInterval(function(){ update(); if(++ticks>20) clearInterval(t); }, 500);
 })();
