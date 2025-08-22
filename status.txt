@@ -1,40 +1,33 @@
 (function(){
-  function panel(html){
-    var d=document.createElement("div");
-    d.innerHTML=html;
-    d.style.cssText="position:fixed;top:8px;left:8px;z-index:999999;max-width:520px;max-height:70vh;overflow:auto;"+
-                    "background:#111;color:#fff;font:12px/1.4 system-ui;border-radius:8px;padding:10px 12px;box-shadow:0 4px 16px rgba(0,0,0,.35)";
-    document.body.appendChild(d);
-    return d;
+  // --- tiny badge so you know this script started ---
+  function badge(text,color){
+    try{
+      var b=document.createElement("div");
+      b.textContent=text;
+      b.style.cssText="position:fixed;top:8px;right:8px;z-index:999999;padding:8px 10px;border-radius:6px;font:12px system-ui;"+
+                      "background:"+(color||"#2d7")+";color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)";
+      document.body.appendChild(b);
+      setTimeout(function(){ b.parentNode && b.parentNode.removeChild(b); }, 3500);
+    }catch(e){}
   }
-  function esc(s){return (s||"").replace(/[&<>]/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;" }[m]));}
-  function wait(cb){var t=0;(function p(){ if(window.infowiseForm){cb();} else if(t++<200){setTimeout(p,50);} })();}
+  badge("Open: discovery starting");
+
+  // wait for InfoWise API
+  function wait(cb){var t=0;(function poll(){ if(window.infowiseForm){cb();} else if(t++<200){setTimeout(poll,50);} })();}
 
   wait(function(){
-    // collect candidates from labels/headers on the page
-    var nodes = Array.from(document.querySelectorAll('label,[role="heading"],.ms-Label,.infowise-label,h1,h2,h3,h4'));
-    var texts = [];
-    nodes.forEach(n=>{
-      var t=(n.innerText||"").trim();
-      if(!t) return;
-      // add variants without trailing asterisks
-      [t, t.replace(/\s*\*+$/, ""), t.replace(/\*/g,"")].forEach(v=>{
-        v=v.trim(); if(v && texts.indexOf(v)===-1) texts.push(v);
-      });
-    });
+    // 1) Try to resolve the lookup/section/field automatically
+    var project=null, projectCaption=null;
+    var section=null, sectionEl=null, sectionTitle=null;
+    var idField=null, idCaption=null;
 
-    var fields=[], sections=[];
-    texts.forEach(txt=>{
-      try { if (infowiseForm.getField(txt))   fields.push(txt); } catch(_){}
-      try { if (infowiseForm.getSection(txt)) sections.push(txt); } catch(_){}
-    });
-
-    var html = "<div style='font-weight:600;margin-bottom:6px'>Infowise discovery</div>";
-    html += "<div><b>Fields I can access</b> ("+fields.length+"):</div><ul style='margin:6px 0 10px 18px'>";
-    fields.slice(0,120).forEach(t=>{ html += "<li>"+esc(t)+"</li>"; }); html += "</ul>";
-    html += "<div><b>Sections I can access</b> ("+sections.length+"):</div><ul style='margin:6px 0 10px 18px'>";
-    sections.slice(0,120).forEach(t=>{ html += "<li>"+esc(t)+"</li>"; }); html += "</ul>";
-    html += "<div style='margin-top:8px;opacity:.85'>Use the EXACT strings above for your Project lookup, Rest-of-Form section, and ID display field.</div>";
-    panel(html);
-  });
-})();
+    // build candidate texts from visible labels/headers
+    function collectTexts(){
+      var list=[], i, nodes = document.querySelectorAll('label,[role="heading"],.ms-Label,.infowise-label,h1,h2,h3,h4,th');
+      for(i=0;i<nodes.length;i++){
+        var t=(nodes[i].innerText||"").replace(/\s+/g," ").replace(/^\s+|\s+$/g,"");
+        if(!t) continue;
+        // add variants stripping asterisks
+        var v1=t, v2=t.replace(/\s*\*+$/,""), v3=t.replace(/\*/g,"");
+        if(list.indexOf(v1)===-1) list.push(v1);
+        if(v2 && list.indexOf(v2)===-1) list.push(v2);
