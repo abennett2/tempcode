@@ -1,96 +1,92 @@
 (function(){
-  // ---- UI breadcrumb so you know this script is running ----
+  // ===== If your labels differ, add them to these lists =====
+  var LOOKUP_LABELS = ["Project","Project Name","Project *","Project*"];
+  var IDCOPY_LABELS = ["Project ID (copy)","Project ID","Project Id","Project id"];
+  // Optional: if you set the container CSS class, use this (recommended)
+  var SECTION_CLASS = "rest-of-form"; // set your container's CSS class to this (no spaces)
+  var SECTION_HEADER_TEXT = "Rest of Form"; // fallback by visible header if no class
+  // ==========================================================
+
+  // Quick “I’m alive” badge
   function badge(msg,color){
     try{
-      var b=document.createElement("div");
-      b.textContent=msg;
-      b.style.cssText="position:fixed;top:8px;right:8px;z-index:999999;padding:8px 10px;border-radius:6px;font:12px system-ui;"+
-                      "background:"+(color||"#2d7")+";color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)";
-      document.body.appendChild(b); setTimeout(function(){ b.remove(); }, 3000);
+      var b=document.getElementById("__iw_badge__");
+      if(!b){ b=document.createElement("div"); b.id="__iw_badge__";
+        b.style.cssText="position:fixed;top:8px;right:8px;z-index:999999;padding:8px 10px;border-radius:6px;font:12px system-ui;"+
+                        "background:"+(color||"#2d7")+";color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2)";
+        document.body.appendChild(b);
+      }
+      b.textContent=msg; b.style.background=color||"#2d7";
+      clearTimeout(b._t); b._t=setTimeout(function(){ b.remove(); }, 3000);
     }catch(e){}
   }
-  badge("Open: DOM mode");
+  badge("Open: live UI ready");
 
-  // ---- Label candidates (edit if your captions differ) ----
-  var LOOKUP_LABELS  = ["Project","Project Name","Project *","Project*"];
-  var IDCOPY_LABELS  = ["Project ID","Project ID","Project Id","Project id"];
-
-  // ---- Helpers to find things by label/header ----
   function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
+  function q(sel,root){ return (root||document).querySelector(sel); }
+  function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
 
-  function findInputByLabel(candidates){
-    var labels = document.querySelectorAll("label,.ms-Label,.infowise-label");
-    var i, j;
-    for (i=0;i<candidates.length;i++){
+  function findLabelNode(candidates){
+    var labels = qa("label,.ms-Label,.infowise-label,th,[data-field-label]");
+    for (var i=0;i<candidates.length;i++){
       var want = norm(candidates[i]).toLowerCase();
-      for (j=0;j<labels.length;j++){
+      for (var j=0;j<labels.length;j++){
         var t = norm(labels[j].innerText||"").toLowerCase();
-        if (!t) continue;
-        if (t === want){
-          // 1) for= points to input/select
-          var forId = labels[j].getAttribute("for");
-          if (forId){
-            var el = document.getElementById(forId);
-            if (el) return el;
-          }
-          // 2) otherwise nearest input/select in same container row
-          var row = labels[j].closest(".ms-Grid-row, .row, div");
-          if (row){
-            var el2 = row.querySelector("input, select, textarea");
-            if (el2) return el2;
-          }
-          // 3) last resort: next sibling inputs
-          var sib = labels[j].nextElementSibling;
-          while (sib){
-            var tryEl = sib.querySelector && sib.querySelector("input, select, textarea");
-            if (tryEl) return tryEl;
-            sib = sib.nextElementSibling;
-          }
-        }
+        if (t && t === want) return labels[j];
       }
+    }
+    return null;
+  }
+
+  function findEditorNearLabel(labelNode){
+    if (!labelNode) return null;
+    var forId = labelNode.getAttribute("for");
+    if (forId){
+      var el = document.getElementById(forId);
+      if (el && /INPUT|SELECT|TEXTAREA/.test(el.tagName)) return el;
+    }
+    var row = labelNode.closest(".ms-Grid-row, .row, .iw-control, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
+    if (row){
+      var el2 = q("input, select, textarea", row);
+      if (el2) return el2;
+    }
+    var sib = labelNode.nextElementSibling;
+    while (sib){
+      var el3 = sib.querySelector && sib.querySelector("input, select, textarea");
+      if (el3) return el3;
+      sib = sib.nextElementSibling;
     }
     return null;
   }
 
   function findSectionElement(){
-    // Prefer CSS class we asked you to set
-    var el = document.querySelector(".rest-of-form");
+    var el = q("."+SECTION_CLASS);
     if (el) return el;
-    // Fallback: header text
-    var heads = document.querySelectorAll('[role="heading"], h1, h2, h3, h4');
+    var heads = qa('[role="heading"], h1, h2, h3, h4');
     for (var i=0;i<heads.length;i++){
-      var t = norm(heads[i].innerText||"");
-      if (t.toLowerCase() === "rest of form"){
-        // grab the closest container that wraps the section
-        var container = heads[i].closest("section, .ms-Grid-row, .iw-container, .ms-Stack, div");
-        return container || heads[i].parentElement;
+      var t = norm(heads[i].innerText||"").toLowerCase();
+      if (t === SECTION_HEADER_TEXT.toLowerCase()){
+        var wrap = heads[i].closest("section, .ms-Grid-row, .iw-container, .ms-Stack, div");
+        return wrap || heads[i].parentElement;
       }
     }
     return null;
   }
 
-  // ---- Read the selected lookup "ID" from whatever control is rendered ----
   function getLookupId(lookupEl){
     if (!lookupEl) return null;
-
-    // SELECT control? Use its value (usually numeric ID)
     if (lookupEl.tagName === "SELECT"){
       var v = lookupEl.value;
       if (v && /^\d+$/.test(v)) return parseInt(v,10);
       return v || null;
     }
-
-    // INPUT with data-id?
     var dataId = lookupEl.getAttribute("data-id");
     if (dataId && /^\d+$/.test(dataId)) return parseInt(dataId,10);
-
-    // INPUT value numeric?
     if (lookupEl.value && /^\d+$/.test(lookupEl.value)) return parseInt(lookupEl.value,10);
 
-    // Look for a hidden sibling that carries the ID (common with lookups)
-    var row = lookupEl.closest(".ms-Grid-row, .row, div") || lookupEl.parentElement;
+    var row = lookupEl.closest(".ms-Grid-row, .row, .iw-control, .ms-Stack, div") || lookupEl.parentElement;
     if (row){
-      var hid = row.querySelector('input[type="hidden"][name*="Id"], input[type="hidden"][id*="Id"], input[type="hidden"][name*="Lookup"], input[type="hidden"][id*="Lookup"]');
+      var hid = q('input[type="hidden"][name*="Id"], input[type="hidden"][id*="Id"], input[type="hidden"][name*="Lookup"], input[type="hidden"][id*="Lookup"]', row);
       if (hid && hid.value){
         if (/^\d+$/.test(hid.value)) return parseInt(hid.value,10);
         return hid.value;
@@ -99,53 +95,63 @@
     return null;
   }
 
-  // ---- Set a (possibly read-only) field's value ----
-  function setFieldValue(inputEl, val){
-    if (!inputEl) return;
-    var wasDisabled = inputEl.disabled;
-    try{
-      if (wasDisabled) inputEl.disabled = false;   // temporarily enable so value sticks visually
-      inputEl.value = (val==null ? "" : String(val));
-      // trigger native events so UI updates
-      var ev1 = document.createEvent("HTMLEvents"); ev1.initEvent("input", true, false); inputEl.dispatchEvent(ev1);
-      var ev2 = document.createEvent("HTMLEvents"); ev2.initEvent("change", true, false); inputEl.dispatchEvent(ev2);
-    } finally {
-      if (wasDisabled) inputEl.disabled = true;
-    }
+  function setReadOnlyInput(el, on){
+    if (!el) return;
+    try {
+      el.readOnly = !!on;                   // submit-safe
+      el.setAttribute("aria-readonly", on ? "true" : "false");
+      el.style.background = on ? "#f5f5f5" : "";  // subtle cue
+      el.style.pointerEvents = on ? "none" : "";  // blocks mouse edits; keyboard already blocked by readOnly
+      // Prevent paste
+      var block = function(e){ if (on) e.preventDefault(); };
+      el.addEventListener("paste", block, true);
+      el.addEventListener("keydown", function(e){
+        if (!on) return;
+        // allow Tab, Shift+Tab, Arrow keys; block typing
+        var k=e.key;
+        var nav = ["Tab","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"];
+        if (nav.indexOf(k)===-1) e.preventDefault();
+      }, true);
+    } catch(_){}
   }
 
-  // ---- Show/hide the section ----
-  function hideSection(sec){ if (sec) sec.style.display = "none"; }
-  function showSection(sec){ if (sec) sec.style.display = ""; }
+  function setFieldValue(inputEl, val){
+    if (!inputEl) return;
+    var text = (val==null ? "" : String(val));
+    inputEl.value = text;
+    // trigger UI updates
+    var ev1 = document.createEvent("HTMLEvents"); ev1.initEvent("input", true, false);  inputEl.dispatchEvent(ev1);
+    var ev2 = document.createEvent("HTMLEvents"); ev2.initEvent("change", true, false); inputEl.dispatchEvent(ev2);
+  }
 
-  // ---- Wire it all up ----
-  var lookupEl = findInputByLabel(LOOKUP_LABELS);
-  var idCopyEl = findInputByLabel(IDCOPY_LABELS);
-  var sectionEl = findSectionElement();
+  function hide(el){ if (el) el.style.display="none"; }
+  function show(el){ if (el) el.style.display=""; }
 
-  // Quick badge to confirm what we resolved
-  var ok = (!!lookupEl) && (!!idCopyEl) && (!!sectionEl);
-  badge("Resolved → lookup:"+ (!!lookupEl) +" | section:"+ (!!sectionEl) +" | idField:"+ (!!idCopyEl), ok ? "#2d7" : "#e67");
-  if (!lookupEl || !idCopyEl || !sectionEl) return; // stop until labels/class are correct
+  // ---- resolve elements ----
+  var lookupLabel = findLabelNode(LOOKUP_LABELS);
+  var lookupEl    = findEditorNearLabel(lookupLabel);
+  var idLabel     = findLabelNode(IDCOPY_LABELS);
+  var idInputEl   = findEditorNearLabel(idLabel);
+  var sectionEl   = findSectionElement();
+
+  var ready = (!!lookupEl) && (!!idInputEl) && (!!sectionEl);
+  badge("Resolved → lookup:"+ (!!lookupEl) +" | idInput:"+ (!!idInputEl) +" | section:"+ (!!sectionEl), ready ? "#2d7" : "#e67");
+  if (!ready) return;
+
+  // lock the ID field against edits but still submit it
+  setReadOnlyInput(idInputEl, true);
 
   function update(){
     var id = getLookupId(lookupEl);
-    setFieldValue(idCopyEl, id || "");
-    if (id){ showSection(sectionEl); }
-    else   { hideSection(sectionEl); }
+    setFieldValue(idInputEl, id || "");
+    if (id){ show(sectionEl); } else { hide(sectionEl); }
   }
 
-  // initial
+  // initial + listeners (some renderers fire change on blur)
   update();
+  ["change","input"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
+  lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
 
-  // listen for changes (some renderers only fire on blur)
-  lookupEl.addEventListener("change", update, true);
-  lookupEl.addEventListener("input",  update, true);
-  lookupEl.addEventListener("blur",   function(){ setTimeout(update, 0); }, true);
-
-  // small safety poll for 10s in case lookup hydrates late
-  var ticks=0, t=setInterval(function(){
-    update();
-    if (++ticks > 20) clearInterval(t);
-  }, 500);
+  // safety poll for late-hydrating lookups
+  var ticks=0, t=setInterval(function(){ update(); if(++ticks>20) clearInterval(t); }, 500);
 })();
