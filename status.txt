@@ -31,3 +31,129 @@
         var v1=t, v2=t.replace(/\s*\*+$/,""), v3=t.replace(/\*/g,"");
         if(list.indexOf(v1)===-1) list.push(v1);
         if(v2 && list.indexOf(v2)===-1) list.push(v2);
+        if(v3 && list.indexOf(v3)===-1) list.push(v3);
+      }
+      return list;
+    }
+
+    function tryGetFieldByTexts(texts){
+      var i,f;
+      for(i=0;i<texts.length;i++){
+        try{ f = infowiseForm.getField(texts[i]); }catch(e){ f=null; }
+        if(f) return {ctrl:f, caption:texts[i]};
+      }
+      return null;
+    }
+
+    function tryGetSectionByTexts(texts){
+      var i,s;
+      for(i=0;i<texts.length;i++){
+        try{ s = infowiseForm.getSection(texts[i]); }catch(e){ s=null; }
+        if(s) return {ctrl:s, title:texts[i]};
+      }
+      return null;
+    }
+
+    var texts = collectTexts();
+
+    // Prefer anything that starts with "Project"
+    var projectFirst = [];
+    var i;
+    for(i=0;i<texts.length;i++){
+      if(/^project\b/i.test(texts[i])) projectFirst.push(texts[i]);
+    }
+    // fallback: all texts
+    var projectTry = projectFirst.concat(texts);
+
+    var gotProject = tryGetFieldByTexts(projectTry);
+    if(gotProject){ project = gotProject.ctrl; projectCaption = gotProject.caption; }
+
+    // Section by exact header first
+    var gotSection = tryGetSectionByTexts(["Rest of Form"].concat(texts));
+    if(gotSection){ section = gotSection.ctrl; sectionTitle = gotSection.title; }
+
+    // Fallback: CSS class .rest-of-form or the spaced classes .Rest.of.Form
+    if(!section){
+      sectionEl = document.querySelector(".rest-of-form") || document.querySelector(".Rest.of.Form");
+      if(sectionEl){
+        section = {
+          setVisible: function(v){ sectionEl.style.display = v ? "" : "none"; },
+          setReadOnly: function(ro){
+            var nodelist = sectionEl.querySelectorAll("input,select,textarea,button");
+            for(var j=0;j<nodelist.length;j++){ nodelist[j].disabled = !!ro; }
+          }
+        };
+        sectionTitle = "(by CSS class)";
+      }
+    }
+
+    // ID field: try obvious variants first, then any caption containing "Project" and "ID"
+    var idCandidates = ["Project ID (copy)", "Project ID", "Project Id", "Project id"];
+    var gotId = tryGetFieldByTexts(idCandidates);
+    if(!gotId){
+      var idTextList = [];
+      for(i=0;i<texts.length;i++){
+        if(/project/i.test(texts[i]) && /\bid\b/i.test(texts[i])) idTextList.push(texts[i]);
+      }
+      gotId = tryGetFieldByTexts(idTextList);
+    }
+    if(gotId){ idField = gotId.ctrl; idCaption = gotId.caption; }
+
+    // Show what we resolved
+    badge("Resolved – Lookup: "+(projectCaption||"NO")+
+          " | Section: "+(sectionTitle||"NO")+
+          " | ID field: "+(idCaption||"NO"),
+          (project && section && idField) ? "#2d7" : "#e67");
+
+    if(!project || !section || !idField){
+      // nothing more to do until we can resolve captions
+      return;
+    }
+
+    // 2) Wire minimal behavior: hide section until a project is selected; write ID immediately
+    function setVisible(v){ try{ section.setVisible(!!v); }catch(e){} }
+    function setId(val){ try{ idField.setValue(val!=null?String(val):""); }catch(e){} }
+
+    function readProjectId(){
+      try{
+        if (typeof project.getLookupId === "function"){
+          var id = project.getLookupId(); if(id) return id;
+        }
+        if (typeof project.getValue === "function"){
+          var v = project.getValue(); // number|string|{id,value}|array|null
+          if (typeof v === "number") return v;
+          if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v,10);
+          if (v && typeof v === "object"){
+            if ("id" in v) return v.id;
+          }
+          if (Object.prototype.toString.call(v)==='[object Array]' && v.length){
+            var a=v[0];
+            if (typeof a==="number") return a;
+            if (typeof a==="string" && /^\d+$/.test(a)) return parseInt(a,10);
+            if (a && typeof a==="object" && ("id" in a)) return a.id;
+          }
+        }
+      }catch(e){}
+      return null;
+    }
+
+    function update(){
+      var id = readProjectId();
+      setId(id || "");
+      setVisible(!!id);
+    }
+
+    // initial + change (some builds fire on blur)
+    update();
+    if (project && typeof project.onChange === "function"){
+      project.onChange(update);
+    } else {
+      // simple polling fallback so you still see updates
+      var last=null;
+      setInterval(function(){
+        var cur = readProjectId();
+        if (cur !== last){ last = cur; update(); }
+      }, 500);
+    }
+  });
+})();
