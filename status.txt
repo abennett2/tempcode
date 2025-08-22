@@ -1,139 +1,88 @@
-(function () {
-  var LOOKUP_CAPTION    = "Project";
+(function(){
+  // >>> Edit these to EXACT captions you see on the canvas <<<
+  var CANDIDATE_LOOKUP_CAPTIONS = ["Project","Project Name","Project (lookup)"]; // try exact label(s)
   var SECTION_TITLE     = "Rest of Form";
   var IDCOPY_CAPTION    = "Project ID (copy)";
-  var STATUSCOPY_CAPTION= "Project Status (copy)";
-  var SAVE_BUTTON_TEXT  = "Save";
-  var ADDNEW_BUTTON_TEXT= "Add New";
-  var PROJECT_LIST_TITLE= "Project Names";
-  var STATUS_INTERNAL   = "Status";
 
-  function waitForInfowise(cb) {
-    var tries = 0, max = 200;
-    (function poll() {
-      if (window.infowiseForm &&
-          typeof infowiseForm.getField === "function" &&
-          typeof infowiseForm.getSection === "function") {
-        cb();
-      } else if (tries++ < max) {
-        setTimeout(poll, 50);
-      } else {
-        if (window.console && console.error) console.error("infowiseForm never became available.");
-      }
-    })();
-  }
+  function wait(cb){var t=0;(function p(){ if(window.infowiseForm){cb();} else if(t++<200){setTimeout(p,50);} })();}
 
-  waitForInfowise(function init() {
-    var project    = infowiseForm.getField(LOOKUP_CAPTION);
-    var section    = infowiseForm.getSection(SECTION_TITLE);
-    var idField    = infowiseForm.getField(IDCOPY_CAPTION);
-    var statusField= infowiseForm.getField(STATUSCOPY_CAPTION);
-    var saveBtn    = infowiseForm.getButton(SAVE_BUTTON_TEXT);
-    var addNewBtn  = infowiseForm.getButton(ADDNEW_BUTTON_TEXT);
+  wait(function(){
+    function found(x){ return x ? "YES" : "NO"; }
 
-    function setVisible(v){ if(section && section.setVisible)     section.setVisible(!!v); }
-    function setReadOnly(v){ if(section && section.setReadOnly)   section.setReadOnly(!!v); }
-    function setId(v){ if(idField && idField.setValue)            idField.setValue(v != null ? String(v) : ""); }
-    function setStatus(v){ if(statusField && statusField.setValue)statusField.setValue(v || ""); }
-    function setButtonsEnabled(on){
-      if (saveBtn   && saveBtn.setEnabled)   saveBtn.setEnabled(!!on);
-      if (addNewBtn && addNewBtn.setEnabled) addNewBtn.setEnabled(!!on);
+    // Try multiple possible lookup captions until one resolves
+    var project=null, usedCaption=null;
+    for (var i=0;i<CANDIDATE_LOOKUP_CAPTIONS.length;i++){
+      try { project = infowiseForm.getField(CANDIDATE_LOOKUP_CAPTIONS[i]); } catch(e){ project=null; }
+      if (project){ usedCaption = CANDIDATE_LOOKUP_CAPTIONS[i]; break; }
     }
 
+    var section = null, idField = null;
+    try { section = infowiseForm.getSection(SECTION_TITLE); } catch(e){}
+    try { idField = infowiseForm.getField(IDCOPY_CAPTION); } catch(e){}
+
+    // Show what we actually found
+    alert(
+      "Found lookup? " + found(project) + (usedCaption ? (" (caption: " + usedCaption + ")") : "") + "\n" +
+      "Found section? " + found(section) + " (title: " + SECTION_TITLE + ")\n" +
+      "Found ID field? " + found(idField) + " (caption: " + IDCOPY_CAPTION + ")"
+    );
+
+    if (!project) { alert("→ Update CANDIDATE_LOOKUP_CAPTIONS to the EXACT label shown on your form."); return; }
+    if (!section) { alert("→ Update SECTION_TITLE to the EXACT section title."); return; }
+    if (!idField) { alert("→ Update IDCOPY_CAPTION to the EXACT field caption."); return; }
+
+    // Try all known ways to read a lookup ID and show it
     function readProjectId(){
       try {
-        if (project && typeof project.getLookupId === "function") {
+        if (typeof project.getLookupId === "function") {
           var id = project.getLookupId();
           if (id) return id;
         }
-        if (project && typeof project.getValue === "function") {
-          var v = project.getValue(); // number | string | {id, value} | null
+        if (typeof project.getValue === "function") {
+          var v = project.getValue(); // number | string | {id,value} | array | null
           if (typeof v === "number") return v;
-          if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v, 10);
-          if (v && typeof v === "object" && ("id" in v)) return v.id;
+          if (typeof v === "string" && /^\d+$/.test(v)) return parseInt(v,10);
+          if (Array.isArray(v) && v.length) {
+            var a=v[0]; if (typeof a==="number") return a;
+            if (typeof a==="string" && /^\d+$/.test(a)) return parseInt(a,10);
+            if (a && typeof a==="object" && ("id" in a)) return a.id;
+          }
+          if (v && typeof v==="object" && ("id" in v)) return v.id;
         }
       } catch(e){}
       return null;
     }
 
-    function fetchStatusById(id){
-      return new Promise(function(resolve){
-        if (!id) return resolve("");
-        var url = _spPageContextInfo.webAbsoluteUrl +
-          "/_api/web/lists/getbytitle('" + encodeURIComponent(PROJECT_LIST_TITLE) + "')/items(" + id + ")?" +
-          "$select=ID," + STATUS_INTERNAL;
-        fetch(url, { headers: { "Accept": "application/json;odata=nometadata" } })
-          .then(function(r){ return r.ok ? r.json() : Promise.reject(); })
-          .then(function(d){ resolve(d[STATUS_INTERNAL] || ""); })
-          .catch(function(){ resolve(""); });
+    function setId(val){ try { idField.setValue(val != null ? String(val) : ""); } catch(e){} }
+    function setVisible(vis){ try { section.setVisible(!!vis); } catch(e){} }
+
+    // Initial state: hide until selected
+    (function update(){
+      var id = readProjectId();
+      setId(id || "");
+      setVisible(!!id);
+    })();
+
+    // React to changes (some builds fire on blur)
+    if (typeof project.onChange === "function") {
+      project.onChange(function(){
+        var id = readProjectId();
+        setId(id || "");
+        setVisible(!!id);
+        alert("Lookup changed. New ID: " + (id==null? "(none)": id)); // remove after confirming it fires
       });
-    }
-
-    function applyStatusRules(statusText){
-      var s = (statusText || "").toLowerCase();
-      if (s === "draft" || s === "inactive") {
-        setVisible(false);
-        setReadOnly(false);
-        setButtonsEnabled(false);
-      } else if (s === "closed") {
-        setVisible(true);
-        setReadOnly(true);
-        setButtonsEnabled(true);
-      } else {
-        // Active / anything else
-        setVisible(true);
-        setReadOnly(false);
-        setButtonsEnabled(true);
-      }
-    }
-
-    function updateUI(){
-      var projId = readProjectId();
-      setId(projId || "");
-
-      if (!projId) {
-        setVisible(false);
-        setReadOnly(false);
-        setStatus("");
-        setButtonsEnabled(false);
-        return;
-      }
-
-      setVisible(true);
-      setReadOnly(false);
-      setButtonsEnabled(true);
-
-      fetchStatusById(projId).then(function(status){
-        setStatus(status);
-        applyStatusRules(status);
-      });
-    }
-
-    updateUI();
-    if (project && typeof project.onChange === "function") {
-      project.onChange(updateUI);
     } else {
-      var last = null, ticks = 0, t = setInterval(function(){
-        var curr = readProjectId();
-        if (curr !== last) { last = curr; updateUI(); }
-        if (++ticks > 60) clearInterval(t); // ~15s
-      }, 250);
+      alert("Lookup has no onChange; we’ll detect changes for ~15s via polling. Tab out of the field after selecting.");
+      var last=null, ticks=0, t=setInterval(function(){
+        var id = readProjectId();
+        if (id!==last) {
+          last = id;
+          setId(id || "");
+          setVisible(!!id);
+          alert("Detected change via poll. New ID: " + (id==null? "(none)": id)); // remove after confirming
+        }
+        if (++ticks>60) clearInterval(t);
+      },250);
     }
   });
-})();
-
-
------------
-
-
-(function () {
-  // smoke test
-  alert("Open script fired");
-
-
-  // disable Save to *see* code run even if alerts are blocked
-  try {
-    var saveBtn = infowiseForm && infowiseForm.getButton && infowiseForm.getButton("Save");
-    if (saveBtn && saveBtn.setEnabled) saveBtn.setEnabled(false);
-  } catch (e) { /* ignore */ }
 })();
