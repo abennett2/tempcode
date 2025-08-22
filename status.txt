@@ -1,13 +1,10 @@
 (function(){
-  // ===== If your labels differ, add them to these lists =====
   var LOOKUP_LABELS = ["Project","Project Name","Project *","Project*"];
-  var IDCOPY_LABELS = ["Project ID (copy)","Project ID","Project Id","Project id"];
-  // Optional: if you set the container CSS class, use this (recommended)
+  var IDCOPY_LABELS = ["Project ID","Project ID","Project Id","Project id"];
+  var STATUS_LABELS = ["Status","Status","Status","Status"];
   var SECTION_CLASS = "rest-of-form"; // set your container's CSS class to this (no spaces)
   var SECTION_HEADER_TEXT = "Rest of Form"; // fallback by visible header if no class
-  // ==========================================================
-
-  // Quick “I’m alive” badge
+  
   function badge(msg,color){
     try{
       var b=document.getElementById("__iw_badge__");
@@ -98,16 +95,14 @@
   function setReadOnlyInput(el, on){
     if (!el) return;
     try {
-      el.readOnly = !!on;                   // submit-safe
+      el.readOnly = !!on;
       el.setAttribute("aria-readonly", on ? "true" : "false");
-      el.style.background = on ? "#f5f5f5" : "";  // subtle cue
-      el.style.pointerEvents = on ? "none" : "";  // blocks mouse edits; keyboard already blocked by readOnly
-      // Prevent paste
+      el.style.background = on ? "#f5f5f5" : "";
+      el.style.pointerEvents = on ? "none" : "";
       var block = function(e){ if (on) e.preventDefault(); };
       el.addEventListener("paste", block, true);
       el.addEventListener("keydown", function(e){
         if (!on) return;
-        // allow Tab, Shift+Tab, Arrow keys; block typing
         var k=e.key;
         var nav = ["Tab","ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End"];
         if (nav.indexOf(k)===-1) e.preventDefault();
@@ -127,18 +122,18 @@
   function hide(el){ if (el) el.style.display="none"; }
   function show(el){ if (el) el.style.display=""; }
 
-  // ---- resolve elements ----
   var lookupLabel = findLabelNode(LOOKUP_LABELS);
   var lookupEl    = findEditorNearLabel(lookupLabel);
   var idLabel     = findLabelNode(IDCOPY_LABELS);
+  var statusLabel = findLabelNode(STATUS_LABELS);
   var idInputEl   = findEditorNearLabel(idLabel);
+  var statusInputEl = findEditorNearLabel(statusLabel);
   var sectionEl   = findSectionElement();
 
-  var ready = (!!lookupEl) && (!!idInputEl) && (!!sectionEl);
-  badge("Resolved → lookup:"+ (!!lookupEl) +" | idInput:"+ (!!idInputEl) +" | section:"+ (!!sectionEl), ready ? "#2d7" : "#e67");
+  var ready = (!!lookupEl) && (!!idInputEl) && (!!statusInputEl) && (!!sectionEl);
+  badge("Resolved → Lookup: "+ (!!lookupEl) +" | idInput: "+ (!!idInputEl) +" | statusInput: "+ (!!statusInputEl) +" | section: "+ (!!sectionEl), ready ? "#2d7" : "#e67");
   if (!ready) return;
 
-  // lock the ID field against edits but still submit it
   setReadOnlyInput(idInputEl, true);
 
   function update(){
@@ -147,11 +142,9 @@
     if (id){ show(sectionEl); } else { hide(sectionEl); }
   }
 
-  // initial + listeners (some renderers fire change on blur)
   update();
   ["change","input"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
   lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
 
-  // safety poll for late-hydrating lookups
   var ticks=0, t=setInterval(function(){ update(); if(++ticks>20) clearInterval(t); }, 500);
 })();
