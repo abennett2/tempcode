@@ -1,2 +1,93 @@
-#ComboBox21-input
-#TextField40
+// Block save unless: Project is chosen AND Status is NOT Draft/Inactive
+(function(){
+  var LABELS = { lookup:"Project", status:"Status" };
+  var BLOCKED = ["draft","inactive"]; // case-insensitive
+
+  function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
+  function q(sel,root){ return (root||document).querySelector(sel); }
+  function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+
+  function findLabelNode(txt){
+    var want = norm(txt).toLowerCase();
+    var nodes = qa("label,.ms-Label,.infowise-label,th,[data-field-label]");
+    for (var i=0;i<nodes.length;i++){
+      var t = norm(nodes[i].innerText||"").toLowerCase();
+      if (t === want) return nodes[i];
+    }
+    return null;
+  }
+  function findEditorNearLabel(labelNode){
+    if (!labelNode) return null;
+    var forId = labelNode.getAttribute("for");
+    if (forId){
+      var el = document.getElementById(forId);
+      if (el && /INPUT|SELECT|TEXTAREA/.test(el.tagName)) return el;
+    }
+    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
+    if (row){
+      var el2 = q("input, select, textarea, [role='combobox'], [contenteditable='true']", row);
+      if (el2) return el2;
+    }
+    var sib = labelNode.nextElementSibling;
+    while (sib){
+      var el3 = sib.querySelector && sib.querySelector("input, select, textarea, [role='combobox'], [contenteditable='true']");
+      if (el3) return el3;
+      sib = sib.nextElementSibling;
+    }
+    return null;
+  }
+  function findDisplayValueNode(labelNode){
+    if (!labelNode) return null;
+    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
+    var cands = [".iw-control-value",".field-value",".ms-TextField-field",".ms-TextField-wrapper",".value","span","div"];
+    for (var i=0;i<cands.length;i++){
+      var n = q(cands[i],row);
+      if(!n || n===labelNode) continue;
+      if (n.querySelector && n.querySelector("label,.ms-Label,.infowise-label")) continue;
+      return n;
+    }
+    return null;
+  }
+
+  function getLookupText(){
+    var ln = findLabelNode(LABELS.lookup); if(!ln) return "";
+    var el = findEditorNearLabel(ln); if (!el) return "";
+    if (el.tagName==="SELECT"){
+      var i=el.selectedIndex; return i>=0 ? (el.options[i].text||"").trim() : "";
+    }
+    var row = el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div") || el.parentElement;
+    var tkn = row && (q("[data-value]",row) || q(".ms-BasePicker-text,.selected,.tagItemText,.pickerText",row));
+    if (tkn && tkn.textContent) return tkn.textContent.trim();
+    return (el.value||"").trim();
+  }
+  function getStatusValue(){
+    var ln = findLabelNode(LABELS.status); if(!ln) return "";
+    var edit = findEditorNearLabel(ln);
+    var disp = edit ? null : findDisplayValueNode(ln);
+    if (edit){
+      if (edit.tagName==="SELECT"){
+        var i=edit.selectedIndex; return i>=0 ? (edit.options[i].text||"").trim() : "";
+      }
+      return (edit.value||"").trim();
+    }
+    return norm(disp && disp.textContent || "");
+  }
+
+  var project = getLookupText();
+  var status  = getStatusValue();
+  var statusNorm = (status||"").toLowerCase();
+
+  if (!project){
+    alert("Please select a Project before saving.");
+    throw new Error("BLOCK_SAVE_NO_PROJECT");
+  }
+  if (!status){
+    alert("Project Status hasn’t loaded yet. Please wait a moment and try again.");
+    throw new Error("BLOCK_SAVE_NO_STATUS");
+  }
+  if (BLOCKED.indexOf(statusNorm) !== -1){
+    alert("You can’t save for projects in '"+status+"'. Pick a project that isn’t Draft/Inactive.");
+    throw new Error("BLOCK_SAVE_BAD_STATUS");
+  }
+  // If we get here, allow the save to proceed.
+})();
