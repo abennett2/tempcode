@@ -1,85 +1,180 @@
-(function() {
-    'use strict';
+(function(){
+  // Gate everything in the command bar until: Project chosen AND Status not Draft/Inactive.
+  var LABELS = { lookup:"Project", status:"Status" };
+  var BLOCKED = ["draft","inactive"]; // case-insensitive
 
-    // --- CONFIGURATION ---
-    const SELECTORS = {
-        project: '#ComboBox21-input',
-        status: '#TextField40',
-        saveButton: "button[value='Save']",
-        addNewButton: "button[value='Save and New']"
-    };
-    
-    const BLOCKED_STATUSES = ["draft", "inactive"];
-    // --- END CONFIGURATION ---
+  /* ---------- helpers ---------- */
+  function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
+  function q(sel,root){ return (root||document).querySelector(sel); }
+  function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
 
-    // Find the elements on the page once.
-    const projectDropdown = document.querySelector(SELECTORS.project);
-    const statusField = document.querySelector(SELECTORS.status);
-    const saveButton = document.querySelector(SELECTORS.saveButton);
-    const addNewButton = document.querySelector(SELECTORS.addNewButton);
-
-    // If we can't find the crucial elements, stop the script to prevent errors.
-    if (!projectDropdown || (!saveButton && !addNewButton)) {
-        console.error("IW Gating Script: Could not find the Project dropdown or the Save buttons. Please verify your CSS selectors in the CONFIGURATION section.");
-        return;
+  function findLabelNode(txt){
+    var want = norm(txt).toLowerCase();
+    var nodes = qa("label,.ms-Label,.infowise-label,th,[data-field-label]");
+    for (var i=0;i<nodes.length;i++){
+      var t = norm(nodes[i].innerText||"").toLowerCase();
+      if (t === want) return nodes[i];
     }
-
-    /**
-     * Toggles the enabled/disabled state of a button.
-     * @param {HTMLElement} button The button element to modify.
-     * @param {boolean} enabled True to enable, false to disable.
-     */
-    const setButtonState = (button, enabled) => {
-        if (!button) return; // Ignore if this button doesn't exist on the form.
-        
-        button.disabled = !enabled;
-        button.style.opacity = enabled ? '1' : '0.45';
-        button.style.cursor = enabled ? 'pointer' : 'not-allowed';
-    };
-
-    /**
-     * Checks the project and status fields and updates the button states accordingly.
-     */
-    const updateButtonState = () => {
-        const projectValue = projectDropdown.value;
-        
-        // The status can be in an input, a select, or just a text span.
-        // This handles getting the value from any of them.
-        const statusValue = (statusField ? (statusField.value || statusField.textContent) : "").trim().toLowerCase();
-
-        // --- LOGIC ---
-        // 1. A project must be selected (value is not empty or '0', a common placeholder).
-        const isProjectSelected = projectValue && projectValue !== '0';
-        
-        // 2. The project's status must NOT be in the blocked list.
-        const isStatusOk = !BLOCKED_STATUSES.includes(statusValue);
-        
-        // Both conditions must be true to enable the buttons.
-        const shouldBeEnabled = isProjectSelected && isStatusOk;
-
-        // Apply the final state to both buttons.
-        setButtonState(saveButton, shouldBeEnabled);
-        setButtonState(addNewButton, shouldBeEnabled);
-    };
-
-    // --- INITIALIZATION ---
-    // Add the event listener to the project dropdown.
-    projectDropdown.addEventListener('change', updateButtonState);
-
-    // Infowise might populate the Status field after you select a Project.
-    // We need to watch for that change.
-    if (statusField) {
-        // Find a stable parent container for the status field to observe.
-        const statusContainer = statusField.closest('div.ms-Grid-col, td');
-        if (statusContainer) {
-            const observer = new MutationObserver(updateButtonState);
-            // Watch for changes to the text or children within the status field's container.
-            observer.observe(statusContainer, { childList: true, subtree: true, characterData: true });
-        }
+    return null;
+  }
+  function findEditorNearLabel(labelNode){
+    if (!labelNode) return null;
+    var forId = labelNode.getAttribute("for");
+    if (forId){ var el=document.getElementById(forId); if (el && /INPUT|SELECT|TEXTAREA/.test(el.tagName)) return el; }
+    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
+    if (row){ var el2 = q("input, select, textarea, [role='combobox'], [contenteditable='true']", row); if (el2) return el2; }
+    var sib = labelNode.nextElementSibling;
+    while (sib){ var el3 = sib.querySelector && sib.querySelector("input, select, textarea, [role='combobox'], [contenteditable='true']"); if (el3) return el3; sib = sib.nextElementSibling; }
+    return null;
+  }
+  function findDisplayValueNode(labelNode){
+    if (!labelNode) return null;
+    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
+    var cands = [".iw-control-value",".field-value",".ms-TextField-field",".ms-TextField-wrapper",".value","span","div"];
+    for (var i=0;i<cands.length;i++){
+      var n=q(cands[i],row); if(!n||n===labelNode) continue;
+      if (n.querySelector && n.querySelector("label,.ms-Label,.infowise-label")) continue;
+      return n;
     }
-    
-    // Run the check once on page load to set the initial disabled state.
-    // A small delay ensures all form elements are ready.
-    setTimeout(updateButtonState, 500);
+    return null;
+  }
+  function getLookupText(){
+    var ln = findLabelNode(LABELS.lookup); if(!ln) return "";
+    var el = findEditorNearLabel(ln); if (!el) return "";
+    if (el.tagName==="SELECT"){ var i=el.selectedIndex; return i>=0 ? (el.options[i].text||"").trim() : ""; }
+    var row=el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div")||el.parentElement;
+    var tkn=row&&(q("[data-value]",row)||q(".ms-BasePicker-text,.selected,.tagItemText,.pickerText",row));
+    if (tkn && tkn.textContent) return tkn.textContent.trim();
+    return (el.value||"").trim();
+  }
+  function getStatusValue(){
+    var ln = findLabelNode(LABELS.status); if(!ln) return "";
+    var edit = findEditorNearLabel(ln);
+    var disp = edit ? null : findDisplayValueNode(ln);
+    if (edit){
+      if (edit.tagName==="SELECT"){
+        var i=edit.selectedIndex; return i>=0 ? (edit.options[i].text||"").trim() : "";
+      }
+      return (edit.value||"").trim();
+    }
+    return norm(disp && disp.textContent || "");
+  }
 
+  /* ---------- command bar gating ---------- */
+  function getBars(){
+    var bars = qa(
+      ".iw-commandBar, .ms-CommandBar, [role='menubar'], .commandBar, .ms-OverflowSet, .ms-CommandBar-primaryCommand, .ms-CommandBar-secondaryCommand"
+    );
+    return bars.length ? bars : [document.body]; // worst-case: gate whole doc area
+  }
+  function isButtonLike(el){
+    return el && el.closest && el.closest("button, [role='button'], a, .ms-Button, .ms-CommandBarItem, .ms-ContextualMenu-item");
+  }
+  function isAllowed(el){
+    // allow Cancel / Close / Edit no matter what
+    var bl = el && el.closest && el.closest("button, [role='button'], a, .ms-Button, .ms-ContextualMenu-item");
+    var txt = bl ? (norm((bl.innerText||bl.textContent)||"") + " " +
+                    (bl.getAttribute("aria-label")||"") + " " +
+                    (bl.getAttribute("title")||"")).toLowerCase() : "";
+    return /\b(cancel|close|edit)\b/.test(txt);
+  }
+  function criteriaMet(){
+    var project = getLookupText();
+    var status  = getStatusValue();
+    if (!project) return false;
+    if (!status)  return false;
+    return BLOCKED.indexOf(status.toLowerCase()) === -1;
+  }
+
+  // Visual hint (optional; clicks are blocked regardless)
+  function applyVisualState(){
+    var ok = criteriaMet(), bars = getBars();
+    bars.forEach(function(bar){
+      qa("button, [role='button'], a, .ms-Button, .ms-CommandBarItem, .ms-ContextualMenu-item", bar)
+        .forEach(function(btn){
+          if (!isButtonLike(btn)) return;
+          if (isAllowed(btn)) { // never dim Cancel/Close/Edit
+            btn.style.opacity = ""; btn.style.filter=""; btn.style.cursor="";
+            btn.removeAttribute("aria-disabled");
+            if ("disabled" in btn) btn.disabled = false;
+            return;
+          }
+          if (!ok){
+            btn.style.opacity="0.45"; btn.style.filter="grayscale(0.4)"; btn.style.cursor="not-allowed";
+            btn.setAttribute("aria-disabled","true");
+            if ("disabled" in btn) btn.disabled = true; // harmless if ignored by framework
+          } else {
+            btn.style.opacity=""; btn.style.filter=""; btn.style.cursor="";
+            btn.removeAttribute("aria-disabled");
+            if ("disabled" in btn) btn.disabled = false;
+          }
+        });
+    });
+  }
+
+  // Hard block any interaction within the command bar (except allowed)
+  function intercept(e){
+    var t = e.target;
+    var bars = getBars();
+    var inBar = bars.some(function(b){ return b.contains(t); });
+    if (!inBar) return;
+
+    var btnLike = isButtonLike(t);
+    if (!btnLike) return; // ignore non-buttons in the bar
+    if (isAllowed(t)) return; // let Cancel/Close/Edit through
+    if (criteriaMet()) return; // gate open → allow
+
+    // Block everything else (Save / Save & New / weird menu variants)
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    // Subtle feedback
+    try{
+      var btn = t.closest("button, [role='button'], a, .ms-Button") || t;
+      btn.animate([{transform:"translateX(0)"},{transform:"translateX(-3px)"},{transform:"translateX(3px)"},{transform:"translateX(0)"}],
+                  {duration:160,iterations:1});
+      btn.title = "Pick a valid Project (not Draft/Inactive) before saving.";
+    }catch(_){}
+  }
+
+  /* ---------- init ---------- */
+  // Visual pass
+  applyVisualState();
+
+  // Capture events before framework handlers
+  document.addEventListener("click", intercept, true);
+  document.addEventListener("keydown", function(e){
+    if (e.key==="Enter" || e.key===" ") intercept(e);
+  }, true);
+
+  // Re-apply visuals on DOM churn (no attribute watching → no loops)
+  var pending=null;
+  function schedule(){ if (pending) cancelAnimationFrame(pending); pending = requestAnimationFrame(applyVisualState); }
+  if (window.MutationObserver){
+    new MutationObserver(function(){ schedule(); })
+      .observe(document.body, {subtree:true, childList:true});
+  }
+
+  // Also re-check as your fetch fills Status
+  var tries=0, poll=setInterval(function(){ applyVisualState(); if(++tries>40) clearInterval(poll); }, 400);
+
+  // Watch just the two field areas
+  (function wire(label){
+    var ln = findLabelNode(label); if(!ln) return;
+    var el = findEditorNearLabel(ln);
+    var row = (el && (el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div")||el.parentElement)) || ln.parentElement;
+    ["change","input","keyup","blur"].forEach(function(ev){ if (el) el.addEventListener(ev, schedule, true); });
+    if (row && window.MutationObserver){
+      new MutationObserver(function(){ schedule(); }).observe(row, {subtree:true, childList:true});
+    }
+  })(LABELS.lookup);
+  (function wireStatus(){
+    var ln = findLabelNode(LABELS.status); if(!ln) return;
+    var el = findEditorNearLabel(ln);
+    var row = (el && (el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div")||el.parentElement)) || ln.parentElement;
+    ["change","input","keyup","blur"].forEach(function(ev){ if (el) el.addEventListener(ev, schedule, true); });
+    if (row && window.MutationObserver){
+      new MutationObserver(function(){ schedule(); }).observe(row, {subtree:true, childList:true});
+    }
+  })();
 })();
