@@ -3,9 +3,10 @@
   var PROJECT_LIST_TITLE = "Project Names";   // exact list title
   var SECTION_CLASS = "rest-of-form";         // your container CSS class
   var SECTION_HEADER_TEXT = "Rest of Form";   // fallback by header
+  var BLOCKED_STATUSES = ["draft","inactive"]; // buttons disabled for these
   /* ==================== */
 
-  // Form labels (exact; trailing "*" is okay)
+  // Labels on the Deliverables form
   var LABELS = {
     lookup: "Project",
     status: "Status",
@@ -183,41 +184,134 @@
   // Lock requested fields (submit-safe)
   [statusIn, projIdIn, subByIn, subOnIn].forEach(lock);
 
+  // ---------- Command bar buttons ----------
+  var BUTTONS = { save:null, addNew:null };
+  function looksDisabled(el){
+    return el.hasAttribute("disabled") || el.getAttribute("aria-disabled")==="true" || el.style.pointerEvents==="none";
+  }
+  function setBtnDisabled(el, on){
+    if (!el) return;
+    if (on){
+      el.setAttribute("aria-disabled","true");
+      el.setAttribute("tabindex","-1");
+      if ("disabled" in el) el.disabled = true;
+      el.style.pointerEvents="none";
+      el.style.opacity="0.45";
+      el.style.filter="grayscale(0.4)";
+    } else {
+      el.removeAttribute("aria-disabled");
+      el.removeAttribute("tabindex");
+      if ("disabled" in el) el.disabled = false;
+      el.style.pointerEvents="";
+      el.style.opacity="";
+      el.style.filter="";
+    }
+  }
+  function textOf(el){
+    return norm((el && (el.innerText || el.textContent)) || "");
+  }
+  function findButtons(){
+    // search common command bar containers first
+    var containers = qa(".iw-commandBar, .ms-CommandBar, [role='menubar'], .commandBar, .ms-OverflowSet");
+    if (!containers.length) containers = [document];
+    var candidates = [];
+    containers.forEach(function(c){
+      candidates = candidates.concat(qa("button, a, div[role='button'], span[role='button']", c));
+    });
+    var saveLbls   = ["save"];
+    var newLbls    = ["add new","save and new","save & new","save and new"]; // include NBSP variant
+    var foundSave=null, foundNew=null;
+
+    for (var i=0;i<candidates.length;i++){
+      var t = textOf(candidates[i]).toLowerCase();
+      if (!foundSave && saveLbls.indexOf(t)>=0) foundSave=candidates[i];
+      if (!foundNew  && newLbls.indexOf(t)>=0)  foundNew =candidates[i];
+      if (foundSave && foundNew) break;
+    }
+    BUTTONS.save   = foundSave || BUTTONS.save;
+    BUTTONS.addNew = foundNew  || BUTTONS.addNew;
+  }
+  function bindButtonsAndDisable(){
+    findButtons();
+    setBtnDisabled(BUTTONS.save,   true);
+    setBtnDisabled(BUTTONS.addNew, true);
+  }
+
+  // Rebind on DOM changes (command bar can re-render)
+  var topObserver = new MutationObserver(function(){ findButtons(); updateButtons(); });
+  topObserver.observe(document.body, {subtree:true, childList:true, attributes:true});
+
+  // ---------- State + rules ----------
+  var lastText="", lastStatusNorm=null; // null = not known yet
+
   function applyRecord(rec){
-    if (!rec){ setControlValue(statusIn,statusDisp,""); setControlValue(projIdIn,projIdDisp,""); return; }
+    if (!rec){
+      setControlValue(statusIn,statusDisp,"");
+      setControlValue(projIdIn,projIdDisp,"");
+      lastStatusNorm = null; // unknown -> keep buttons disabled
+      updateButtons();
+      return;
+    }
     var statusKey = pickKey(rec, ["Status","Project Status","ProjectStatus"], "status");
     var idKey     = pickKey(rec, ["ProjectId","Project ID","Project Id","Project_x0020_Id","ProjectID","PID","ProjectNumber","ID"], "projectid");
     var statusVal = statusKey ? rec[statusKey] : "";
     var bizIdVal  = idKey ? rec[idKey] : null;
     if (bizIdVal==null && rec.ID!=null) bizIdVal = rec.ID;
+
     setControlValue(statusIn, statusDisp, statusVal || "");
     setControlValue(projIdIn,  projIdDisp,  bizIdVal!=null ? bizIdVal : "");
+    lastStatusNorm = norm(statusVal).toLowerCase() || ""; // known (even if empty)
+    updateSectionVisibility();
+    updateButtons();
   }
 
-  var lastText="";
+  function updateSectionVisibility(){
+    // Show when a project is chosen AND (status is not Draft/Inactive)
+    var showIt = !!lastText && lastText.length > 0;
+    if (lastStatusNorm !== null){ // if we know the status, enforce Draft/Inactive hide
+      if (BLOCKED_STATUSES.indexOf(lastStatusNorm) >= 0) showIt = false;
+    }
+    if (showIt) show(sectionEl); else hide(sectionEl);
+  }
+
+  function updateButtons(){
+    // Enable when a project is chosen AND we know Status AND Status is not Draft/Inactive
+    var criteriaMet = !!lastText && lastStatusNorm !== null && BLOCKED_STATUSES.indexOf(lastStatusNorm) === -1;
+    // (You can add more criteria here if needed, e.g., Deliverable not empty)
+    findButtons(); // ensure we have them
+    setBtnDisabled(BUTTONS.save,   !criteriaMet);
+    setBtnDisabled(BUTTONS.addNew, !criteriaMet);
+  }
+
   function update(){
     var text = getLookupText(lookupEl);
-
-    // show/hide section
-    if (text && text.length) show(sectionEl); else { hide(sectionEl); applyRecord(null); return; }
-    if (text === lastText) return;
-    lastText = text;
-
-    // fetch by exact Title; fallback to loose match; try multiple bases
-    fetchProjectByExactTitle(text, function(err,res){
-      if (!err && res && res.json && res.json.value && res.json.value[0]){
-        applyRecord(res.json.value[0]); return;
-      }
-      fetchProjectByLooseMatch(text, function(err2,res2){
-        applyRecord(!err2 && res2 ? res2.json : null);
+    if (text !== lastText){
+      lastText = text;
+      updateSectionVisibility();
+      // fetch project record by Title; if exact not found, try loose
+      if (!text){ applyRecord(null); return; }
+      fetchProjectByExactTitle(text, function(err,res){
+        if (!err && res && res.json && res.json.value && res.json.value[0]){
+          applyRecord(res.json.value[0]);
+          return;
+        }
+        fetchProjectByLooseMatch(text, function(err2,res2){
+          applyRecord(!err2 && res2 ? res2.json : null);
+        });
       });
-    });
+    } else {
+      // even if same text, keep buttons state consistent
+      updateButtons();
+    }
   }
 
-  // wire up listeners / observer / safety poll
+  // Initial bind + disable, then listeners
+  bindButtonsAndDisable();
   update();
+
   ["change","input","keyup"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
   lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
+
   var row = lookupEl.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div") || lookupEl.parentElement;
   if (row && window.MutationObserver){
     new MutationObserver(function(){ update(); }).observe(row, {subtree:true, childList:true, attributes:true, characterData:true});
