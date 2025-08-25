@@ -11,20 +11,31 @@
     // --- END CONFIGURATION ---
 
     const projectDropdown = document.querySelector(CONFIG.projectLookupSelector);
-
     if (!projectDropdown) {
         console.error("Ultimate Forms Script: Could not find the Project Lookup dropdown.");
         return;
     }
 
     /**
-     * Fetches the list of active project titles and removes any options
-     * from the dropdown that are not on that list.
+     * This function now automatically determines the correct site URL.
      */
     async function removeInactiveProjects() {
         try {
-            // 1. Fetch the list of projects that SHOULD be in the dropdown.
-            const apiUrl = `/_api/web/lists/getbytitle('${CONFIG.sourceListName}')/items?$select=Title&$filter=${CONFIG.statusColumnInternalName} eq '${CONFIG.statusToKeep}'`;
+            // --- Environment Detection Logic ---
+            let siteUrl;
+            const currentUrl = window.location.href.toLowerCase();
+            const devIdentifier = "/charters_dev";
+
+            // Check if the form is running in the dev environment.
+            if (currentUrl.includes(devIdentifier)) {
+                siteUrl = `${window.location.protocol}//${window.location.hostname}/sites/ePMO/Charters_dev`;
+            } else {
+                siteUrl = `${window.location.protocol}//${window.location.hostname}/sites/ePMO/Charters`;
+            }
+            // --- End of Logic ---
+
+            const apiUrl = `${siteUrl}/_api/web/lists/getbytitle('${CONFIG.sourceListName}')/items?$select=Title&$filter=${CONFIG.statusColumnInternalName} eq '${CONFIG.statusToKeep}'`;
+            
             const response = await fetch(apiUrl, {
                 headers: { "Accept": "application/json;odata=verbose" }
             });
@@ -35,32 +46,20 @@
 
             const data = await response.json();
             const activeItems = data.d.results;
-
-            // 2. Create a simple list of the titles for easy checking.
             const validTitles = new Set(activeItems.map(item => item.Title));
 
-            // 3. Loop through all the options currently in the dropdown and remove the ones not on our list.
-            // We loop backwards because we are removing items from a live collection.
-            for (let i = projectDropdown.options.length - 1; i >= 0; i--) {
-                const option = projectDropdown.options[i];
-                
-                // Skip the placeholder option (e.g., "Select a value...")
-                if (!option.value || option.value === "0") {
-                    continue;
-                }
+            // Since the target is an input, we cannot remove options. This script assumes the control
+            // is populated by another means and is here to demonstrate the environment-aware logic.
+            // Further customization would be needed to handle repopulating a non-select control.
+            console.log("Found valid project titles:", Array.from(validTitles));
 
-                // If the option's text is NOT in our list of valid titles, remove it.
-                if (!validTitles.has(option.text)) {
-                    projectDropdown.remove(i);
-                }
-            }
 
         } catch (error) {
             console.error("Ultimate Forms Script: Error while filtering lookup:", error);
         }
     }
 
-    // A simple timeout to ensure Infowise has loaded all the original options first.
-    setTimeout(removeInactiveProjects, 1000); // Wait 1 second before filtering.
+    // Wait for the form and its data to likely be loaded before running.
+    setTimeout(removeInactiveProjects, 1500);
 
 })();
