@@ -257,11 +257,11 @@
 })();
 
 (function(){
-  /* Button gate: enable only when Project chosen AND Status not Draft/Inactive */
+  // Enable Save / Save & New only when Project chosen AND Status not Draft/Inactive.
   var LABELS = { lookup:"Project", status:"Status" };
   var BLOCKED = ["draft","inactive"]; // case-insensitive
 
-  /* --- helpers --- */
+  /* helpers */
   function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
   function q(sel,root){ return (root||document).querySelector(sel); }
   function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
@@ -319,7 +319,7 @@
     return norm(disp && disp.textContent || "");
   }
 
-  /* --- command bar buttons --- */
+  /* command bar */
   var BUTTONS = { save:null, addNew:null };
   function textOf(el){
     return norm(((el && (el.innerText||el.textContent))||"")+" "+
@@ -335,10 +335,8 @@
     var save=null, add=null;
     for (var i=0;i<candidates.length;i++){
       var t = textOf(candidates[i]).toLowerCase();
-      // Save (but not Save & New)
-      if (!save && /\bsave\b/.test(t) && !/\bnew\b/.test(t)) save = candidates[i];
-      // Save & New / Add New (covers “Save and new”, “Save & New”, “Add New”)
-      if (!add && (/\bsave\b/.test(t) && /\bnew\b/.test(t) || /\badd\b.*\bnew\b/.test(t))) add = candidates[i];
+      if (!save && /\bsave\b/.test(t) && !/\bnew\b/.test(t)) save = candidates[i];                 // Save
+      if (!add && ((/\bsave\b/.test(t) && /\bnew\b/.test(t)) || /\badd\b.*\bnew\b/.test(t))) add = candidates[i]; // Save & New / Add New
       if (save && add) break;
     }
     if (save) BUTTONS.save = save;
@@ -358,12 +356,12 @@
   }
   function disableBoth(){ findButtons(); setBtnDisabled(BUTTONS.save, true); setBtnDisabled(BUTTONS.addNew, true); }
 
-  /* --- gate logic --- */
+  /* gate */
   function criteriaMet(){
     var project = getLookupText();
     var status  = getStatusValue();
-    if (!project) return false;                // must pick a project
-    if (!status)  return false;                // wait until status fetched/resolved
+    if (!project) return false;
+    if (!status)  return false;
     return BLOCKED.indexOf(status.toLowerCase()) === -1;
   }
   function updateButtons(){
@@ -373,21 +371,29 @@
     setBtnDisabled(BUTTONS.addNew, !ok);
   }
 
-  /* --- init + watchers --- */
-  disableBoth();            // start disabled no matter what
-  updateButtons();          // then evaluate once
+  /* init */
+  disableBoth();
+  // Debounce updates to avoid thrash
+  var pending=null;
+  function schedule(){ if (pending) cancelAnimationFrame(pending); pending = requestAnimationFrame(updateButtons); }
 
-  // Listen to changes on Project + Status
-  (function wireField(label){
+  // Watch just for childList changes (NOT attributes) to avoid loops
+  if (window.MutationObserver){
+    new MutationObserver(function(){ schedule(); })
+      .observe(document.body, {subtree:true, childList:true});
+  }
+
+  // Wire changes on Project + Status fields
+  (function wire(label){
     var ln = findLabelNode(label); if(!ln) return;
     var el = findEditorNearLabel(ln);
     var row = (el && (el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div")||el.parentElement)) || ln.parentElement;
     ["change","input","keyup","blur"].forEach(function(ev){
-      if (el) el.addEventListener(ev, updateButtons, true);
+      if (el) el.addEventListener(ev, schedule, true);
     });
     if (row && window.MutationObserver){
-      new MutationObserver(function(){ updateButtons(); })
-        .observe(row, {subtree:true, childList:true, attributes:true, characterData:true});
+      new MutationObserver(function(){ schedule(); })
+        .observe(row, {subtree:true, childList:true});
     }
   })(LABELS.lookup);
   (function wireStatus(){
@@ -395,19 +401,16 @@
     var el = findEditorNearLabel(ln);
     var row = (el && (el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div")||el.parentElement)) || ln.parentElement;
     ["change","input","keyup","blur"].forEach(function(ev){
-      if (el) el.addEventListener(ev, updateButtons, true);
+      if (el) el.addEventListener(ev, schedule, true);
     });
     if (row && window.MutationObserver){
-      new MutationObserver(function(){ updateButtons(); })
-        .observe(row, {subtree:true, childList:true, attributes:true, characterData:true});
+      new MutationObserver(function(){ schedule(); })
+        .observe(row, {subtree:true, childList:true});
     }
   })();
 
-  // Re-check if the command bar re-renders
-  if (window.MutationObserver){
-    new MutationObserver(function(){ findButtons(); updateButtons(); })
-      .observe(document.body, {subtree:true, childList:true, attributes:true});
-  }
-  // small safety poll (covers async fetches)
-  var ticks=0, t=setInterval(function(){ updateButtons(); if(++ticks>40) clearInterval(t); }, 500);
+  // Small safety poll to catch async fetch filling Status
+  var tries=0, poll=setInterval(function(){ updateButtons(); if(++tries>20) clearInterval(poll); }, 500);
+  // Initial evaluation after a tick (lets the bar render)
+  setTimeout(updateButtons, 150);
 })();
