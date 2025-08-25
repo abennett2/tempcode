@@ -1,12 +1,13 @@
 (function(){
   /* ====== CONFIG ====== */
-  var PROJECT_LIST_TITLE = "Project Names";   // exact list title
-  var SECTION_CLASS = "rest-of-form";         // your container CSS class
-  var SECTION_HEADER_TEXT = "Rest of Form";   // fallback by header
-  var BLOCKED_STATUSES = ["draft","inactive"]; // buttons disabled for these
+  var PROJECT_LIST_TITLE = "Project Names";           // exact Projects list title
+  var SECTION_CLASS = "rest-of-form";                 // your container CSS class
+  var SECTION_HEADER_TEXT = "Rest of Form";           // header fallback
+  var BLOCKED_STATUSES = ["draft","inactive"];        // hide/disable when in these
+  var CLOSED_STATUSES  = ["closed"];                  // make section read-only when in these
   /* ==================== */
 
-  // Labels on the Deliverables form
+  // Form labels (exact; trailing "*" is okay)
   var LABELS = {
     lookup: "Project",
     status: "Status",
@@ -15,7 +16,7 @@
     submittedOn: "Submitted On"
   };
 
-  // ---------- DOM helpers ----------
+  /* ---------- helpers ---------- */
   function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
   function q(sel,root){ return (root||document).querySelector(sel); }
   function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
@@ -83,10 +84,35 @@
       el.setAttribute("contenteditable","false"); el.style.pointerEvents="none"; el.style.background="#f5f5f5";
     }
   }
+  function lockSection(el,on){
+    if(!el) return;
+    qa("input, select, textarea, [contenteditable='true']", el).forEach(function(ctrl){
+      if (on){
+        if (/INPUT|TEXTAREA/.test(ctrl.tagName)) { ctrl.readOnly=true; }
+        if (ctrl.tagName==="SELECT" || ctrl.getAttribute("role")==="combobox"){ ctrl.setAttribute("data-locked","1"); }
+        ctrl.setAttribute("aria-readonly","true");
+        ctrl.setAttribute("aria-disabled","true");
+        ctrl.style.pointerEvents="none"; ctrl.style.background="#f0f0f0";
+      } else {
+        if (/INPUT|TEXTAREA/.test(ctrl.tagName)) { ctrl.readOnly=false; }
+        if (ctrl.tagName==="SELECT" || ctrl.getAttribute("role")==="combobox"){ ctrl.removeAttribute("data-locked"); }
+        ctrl.removeAttribute("aria-readonly");
+        ctrl.removeAttribute("aria-disabled");
+        ctrl.style.pointerEvents=""; ctrl.style.background="";
+      }
+    });
+  }
   function hide(el){ if (el) el.style.display="none"; }
   function show(el){ if (el) el.style.display=""; }
 
-  // Lookup: we only need its display text
+  // Hide those footers globally (class: fieldDesc)
+  (function injectCSS(){
+    var css=".iw-control .fieldDesc{display:none!important}";
+    var tag=document.createElement("style"); tag.type="text/css"; tag.appendChild(document.createTextNode(css));
+    document.head.appendChild(tag);
+  })();
+
+  // Lookup text reader
   function getLookupText(lookupEl){
     if (!lookupEl) return "";
     if (lookupEl.tagName==="SELECT"){
@@ -98,7 +124,7 @@
     return (lookupEl.value||"").trim();
   }
 
-  // ---------- REST across candidate bases (no _spPageContextInfo) ----------
+  /* ---------- REST across candidate bases (no _spPageContextInfo) ---------- */
   function candidateBases(){
     var origin=location.origin;
     var parts=location.pathname.split("/").filter(Boolean);
@@ -153,7 +179,7 @@
     });
   }
 
-  // Key selection (handles encoded spaces/variants)
+  // pick keys (handles encoded spaces)
   function encSpaces(s){return s?s.replace(/ /g,"_x0020_"):s;}
   function canon(s){return String(s||"").toLowerCase().replace(/_x00[0-9a-f]{2}_/g," ").replace(/[^a-z0-9]/g,"");}
   function pickKey(obj, prefs, must){
@@ -165,7 +191,7 @@
     return null;
   }
 
-  // ---------- Resolve form elements ----------
+  /* ---------- resolve fields ---------- */
   var lookupNode = findLabelNode(LABELS.lookup);
   var statusNode = findLabelNode(LABELS.status);
   var idNode     = findLabelNode(LABELS.projId);
@@ -181,75 +207,61 @@
 
   if (!lookupEl || !sectionEl) return;
 
-  // Lock requested fields (submit-safe)
+  // Lock the four fields always
   [statusIn, projIdIn, subByIn, subOnIn].forEach(lock);
 
-  // ---------- Command bar buttons ----------
+  /* ---------- Command bar (Save / Save & New only) ---------- */
   var BUTTONS = { save:null, addNew:null };
-  function looksDisabled(el){
-    return el.hasAttribute("disabled") || el.getAttribute("aria-disabled")==="true" || el.style.pointerEvents==="none";
-  }
-  function setBtnDisabled(el, on){
-    if (!el) return;
-    if (on){
-      el.setAttribute("aria-disabled","true");
-      el.setAttribute("tabindex","-1");
-      if ("disabled" in el) el.disabled = true;
-      el.style.pointerEvents="none";
-      el.style.opacity="0.45";
-      el.style.filter="grayscale(0.4)";
-    } else {
-      el.removeAttribute("aria-disabled");
-      el.removeAttribute("tabindex");
-      if ("disabled" in el) el.disabled = false;
-      el.style.pointerEvents="";
-      el.style.opacity="";
-      el.style.filter="";
-    }
-  }
   function textOf(el){
-    return norm((el && (el.innerText || el.textContent)) || "");
+    return norm((el && (el.innerText || el.textContent) || "") + " " +
+                (el && (el.getAttribute("aria-label")||"")) + " " +
+                (el && (el.getAttribute("title")||"")));
   }
   function findButtons(){
-    // search common command bar containers first
     var containers = qa(".iw-commandBar, .ms-CommandBar, [role='menubar'], .commandBar, .ms-OverflowSet");
     if (!containers.length) containers = [document];
     var candidates = [];
     containers.forEach(function(c){
       candidates = candidates.concat(qa("button, a, div[role='button'], span[role='button']", c));
     });
-    var saveLbls   = ["save"];
-    var newLbls    = ["add new","save and new","save & new","save and new"]; // include NBSP variant
-    var foundSave=null, foundNew=null;
-
+    var save=null, add=null;
     for (var i=0;i<candidates.length;i++){
       var t = textOf(candidates[i]).toLowerCase();
-      if (!foundSave && saveLbls.indexOf(t)>=0) foundSave=candidates[i];
-      if (!foundNew  && newLbls.indexOf(t)>=0)  foundNew =candidates[i];
-      if (foundSave && foundNew) break;
+      if (!save && /\bsave\b/.test(t) && !/\bnew\b/.test(t)) save = candidates[i];              // Save
+      if (!add  && ((/\bsave\b/.test(t) && /\bnew\b/.test(t)) || /\badd\b.*\bnew\b/.test(t)))   // Save & New / Add New
+        add = candidates[i];
+      if (save && add) break;
     }
-    BUTTONS.save   = foundSave || BUTTONS.save;
-    BUTTONS.addNew = foundNew  || BUTTONS.addNew;
+    if (save)   BUTTONS.save   = save;
+    if (add)    BUTTONS.addNew = add;
   }
-  function bindButtonsAndDisable(){
-    findButtons();
-    setBtnDisabled(BUTTONS.save,   true);
-    setBtnDisabled(BUTTONS.addNew, true);
+  function setBtnDisabled(el, on){
+    if (!el) return;
+    if (on){
+      el.setAttribute("aria-disabled","true");
+      if ("disabled" in el) el.disabled = true;
+      el.style.pointerEvents="none"; el.style.opacity="0.45"; el.style.filter="grayscale(0.4)";
+    } else {
+      el.removeAttribute("aria-disabled");
+      if ("disabled" in el) el.disabled = false;
+      el.style.pointerEvents=""; el.style.opacity=""; el.style.filter="";
+    }
   }
+  function disableBoth(){ findButtons(); setBtnDisabled(BUTTONS.save, true); setBtnDisabled(BUTTONS.addNew, true); }
+  function enableIfReady(ready){ findButtons(); setBtnDisabled(BUTTONS.save, !ready); setBtnDisabled(BUTTONS.addNew, !ready); }
 
-  // Rebind on DOM changes (command bar can re-render)
-  var topObserver = new MutationObserver(function(){ findButtons(); updateButtons(); });
-  topObserver.observe(document.body, {subtree:true, childList:true, attributes:true});
+  // Re-detect buttons if command bar re-renders
+  new MutationObserver(function(){ findButtons(); }).observe(document.body, {subtree:true, childList:true, attributes:true});
 
-  // ---------- State + rules ----------
-  var lastText="", lastStatusNorm=null; // null = not known yet
+  /* ---------- state + rules ---------- */
+  var lastText="", lastStatus=null;
 
   function applyRecord(rec){
     if (!rec){
       setControlValue(statusIn,statusDisp,"");
       setControlValue(projIdIn,projIdDisp,"");
-      lastStatusNorm = null; // unknown -> keep buttons disabled
-      updateButtons();
+      lastStatus = null;
+      updateVisibilityAndButtons();
       return;
     }
     var statusKey = pickKey(rec, ["Status","Project Status","ProjectStatus"], "status");
@@ -260,35 +272,40 @@
 
     setControlValue(statusIn, statusDisp, statusVal || "");
     setControlValue(projIdIn,  projIdDisp,  bizIdVal!=null ? bizIdVal : "");
-    lastStatusNorm = norm(statusVal).toLowerCase() || ""; // known (even if empty)
-    updateSectionVisibility();
-    updateButtons();
+    lastStatus = norm(statusVal).toLowerCase() || "";
+    updateVisibilityAndButtons();
   }
 
-  function updateSectionVisibility(){
-    // Show when a project is chosen AND (status is not Draft/Inactive)
-    var showIt = !!lastText && lastText.length > 0;
-    if (lastStatusNorm !== null){ // if we know the status, enforce Draft/Inactive hide
-      if (BLOCKED_STATUSES.indexOf(lastStatusNorm) >= 0) showIt = false;
+  function updateVisibilityAndButtons(){
+    // base requirement: a project has been chosen AND we know the status
+    var haveProject = !!lastText;
+    var knowStatus  = (lastStatus !== null);
+    var isBlocked   = knowStatus && BLOCKED_STATUSES.indexOf(lastStatus) >= 0;
+
+    // Section visibility:
+    // - Hidden by default
+    // - Show only when haveProject AND !isBlocked
+    if (haveProject && knowStatus && !isBlocked) {
+      show(sectionEl);
+    } else {
+      hide(sectionEl);
     }
-    if (showIt) show(sectionEl); else hide(sectionEl);
-  }
 
-  function updateButtons(){
-    // Enable when a project is chosen AND we know Status AND Status is not Draft/Inactive
-    var criteriaMet = !!lastText && lastStatusNorm !== null && BLOCKED_STATUSES.indexOf(lastStatusNorm) === -1;
-    // (You can add more criteria here if needed, e.g., Deliverable not empty)
-    findButtons(); // ensure we have them
-    setBtnDisabled(BUTTONS.save,   !criteriaMet);
-    setBtnDisabled(BUTTONS.addNew, !criteriaMet);
+    // Section read-only when Closed
+    var closed = knowStatus && CLOSED_STATUSES.indexOf(lastStatus) >= 0;
+    lockSection(sectionEl, closed);
+
+    // Buttons: disabled until haveProject && knowStatus && !isBlocked
+    var ready = haveProject && knowStatus && !isBlocked;
+    enableIfReady(ready);
   }
 
   function update(){
     var text = getLookupText(lookupEl);
     if (text !== lastText){
       lastText = text;
-      updateSectionVisibility();
-      // fetch project record by Title; if exact not found, try loose
+      // immediately hide/disable until we know status
+      updateVisibilityAndButtons();
       if (!text){ applyRecord(null); return; }
       fetchProjectByExactTitle(text, function(err,res){
         if (!err && res && res.json && res.json.value && res.json.value[0]){
@@ -300,15 +317,21 @@
         });
       });
     } else {
-      // even if same text, keep buttons state consistent
-      updateButtons();
+      // keep controls consistent on minor UI reflows
+      updateVisibilityAndButtons();
     }
   }
 
-  // Initial bind + disable, then listeners
-  bindButtonsAndDisable();
-  update();
+  /* ---------- init ---------- */
+  // Start hidden/disabled no matter what’s on the page initially
+  var sectionEl = sectionEl || findSectionElement();
+  hide(sectionEl);
+  disableBoth();
 
+  // lock specific fields always
+  [statusIn, projIdIn, subByIn, subOnIn].forEach(lock);
+
+  update();
   ["change","input","keyup"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
   lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
 
