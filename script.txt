@@ -1,93 +1,67 @@
-// Block save unless: Project is chosen AND Status is NOT Draft/Inactive
-(function(){
-  var LABELS = { lookup:"Project", status:"Status" };
-  var BLOCKED = ["draft","inactive"]; // case-insensitive
+(function() {
+    'use strict';
 
-  function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
-  function q(sel,root){ return (root||document).querySelector(sel); }
-  function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+    // --- CONFIGURATION ---
+    const CONFIG = {
+        sourceListName: "Project Names",
+        statusColumnInternalName: "Status",
+        statusToKeep: "Active",
+        projectLookupSelector: "#ComboBox21-input"
+    };
 
-  function findLabelNode(txt){
-    var want = norm(txt).toLowerCase();
-    var nodes = qa("label,.ms-Label,.infowise-label,th,[data-field-label]");
-    for (var i=0;i<nodes.length;i++){
-      var t = norm(nodes[i].innerText||"").toLowerCase();
-      if (t === want) return nodes[i];
-    }
-    return null;
-  }
-  function findEditorNearLabel(labelNode){
-    if (!labelNode) return null;
-    var forId = labelNode.getAttribute("for");
-    if (forId){
-      var el = document.getElementById(forId);
-      if (el && /INPUT|SELECT|TEXTAREA/.test(el.tagName)) return el;
-    }
-    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
-    if (row){
-      var el2 = q("input, select, textarea, [role='combobox'], [contenteditable='true']", row);
-      if (el2) return el2;
-    }
-    var sib = labelNode.nextElementSibling;
-    while (sib){
-      var el3 = sib.querySelector && sib.querySelector("input, select, textarea, [role='combobox'], [contenteditable='true']");
-      if (el3) return el3;
-      sib = sib.nextElementSibling;
-    }
-    return null;
-  }
-  function findDisplayValueNode(labelNode){
-    if (!labelNode) return null;
-    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
-    var cands = [".iw-control-value",".field-value",".ms-TextField-field",".ms-TextField-wrapper",".value","span","div"];
-    for (var i=0;i<cands.length;i++){
-      var n = q(cands[i],row);
-      if(!n || n===labelNode) continue;
-      if (n.querySelector && n.querySelector("label,.ms-Label,.infowise-label")) continue;
-      return n;
-    }
-    return null;
-  }
+    const projectDropdown = document.querySelector(CONFIG.projectLookupSelector);
 
-  function getLookupText(){
-    var ln = findLabelNode(LABELS.lookup); if(!ln) return "";
-    var el = findEditorNearLabel(ln); if (!el) return "";
-    if (el.tagName==="SELECT"){
-      var i=el.selectedIndex; return i>=0 ? (el.options[i].text||"").trim() : "";
+    if (!projectDropdown) {
+        console.error("Ultimate Forms Script: Could not find the Project Lookup dropdown. Please check the 'projectLookupSelector'.");
+        return;
     }
-    var row = el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div") || el.parentElement;
-    var tkn = row && (q("[data-value]",row) || q(".ms-BasePicker-text,.selected,.tagItemText,.pickerText",row));
-    if (tkn && tkn.textContent) return tkn.textContent.trim();
-    return (el.value||"").trim();
-  }
-  function getStatusValue(){
-    var ln = findLabelNode(LABELS.status); if(!ln) return "";
-    var edit = findEditorNearLabel(ln);
-    var disp = edit ? null : findDisplayValueNode(ln);
-    if (edit){
-      if (edit.tagName==="SELECT"){
-        var i=edit.selectedIndex; return i>=0 ? (edit.options[i].text||"").trim() : "";
-      }
-      return (edit.value||"").trim();
+
+    /**
+     * Fetches active projects from the source list and populates the dropdown.
+     */
+    async function populateFilteredLookup() {
+        // Keep the original placeholder option (e.g., "(Select a value...)")
+        const originalFirstOption = projectDropdown.options[0];
+        projectDropdown.innerHTML = ''; // Clear existing options
+        if (originalFirstOption) {
+            projectDropdown.appendChild(originalFirstOption);
+        }
+        
+        try {
+            // Construct the SharePoint REST API URL to get filtered items
+            const apiUrl = `/_api/web/lists/getbytitle('${CONFIG.sourceListName}')/items?$select=Id,Title&$filter=${CONFIG.statusColumnInternalName} eq '${CONFIG.statusToKeep}'&$orderby=Title`;
+            
+            const response = await fetch(apiUrl, {
+                headers: { "Accept": "application/json;odata=verbose" }
+            });
+
+            if (!response.ok) {
+                throw new Error(`SharePoint API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const items = data.d.results;
+
+            // Add the filtered items as new options to the dropdown
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.Id;
+                option.text = item.Title;
+                projectDropdown.appendChild(option);
+            });
+
+        } catch (error) {
+            console.error("Failed to populate filtered lookup:", error);
+        }
     }
-    return norm(disp && disp.textContent || "");
-  }
 
-  var project = getLookupText();
-  var status  = getStatusValue();
-  var statusNorm = (status||"").toLowerCase();
-
-  if (!project){
-    alert("Please select a Project before saving.");
-    throw new Error("BLOCK_SAVE_NO_PROJECT");
-  }
-  if (!status){
-    alert("Project Status hasn’t loaded yet. Please wait a moment and try again.");
-    throw new Error("BLOCK_SAVE_NO_STATUS");
-  }
-  if (BLOCKED.indexOf(statusNorm) !== -1){
-    alert("You can’t save for projects in '"+status+"'. Pick a project that isn’t Draft/Inactive.");
-    throw new Error("BLOCK_SAVE_BAD_STATUS");
-  }
-  // If we get here, allow the save to proceed.
+    // --- SCRIPT EXECUTION ---
+    // Run the script to populate the dropdown when the form loads.
+    if (window.SP && window.SP.SOD) {
+        SP.SOD.executeFunc('sp.js', 'SP.ClientContext', populateFilteredLookup);
+    } else {
+        // Fallback for older pages or if sp.js is already loaded
+        document.addEventListener('DOMContentLoaded', populateFilteredLookup);
+    }
+    
 })();
