@@ -3,7 +3,72 @@
 
     // --- CONFIGURATION ---
     const CONFIG = {
-        // The name of the list you are looking up to.
+        // The name of the list you are looking up to.(function() {
+    'use strict';
+    
+    console.log("Infowise Script: 1. Starting...");
+
+    // --- CONFIGURATION ---
+    const CONFIG = {
+        sourceListName: "Project Names",
+        statusColumnInternalName: "Status",
+        statusToKeep: "Active",
+        projectLookupSelector: "REPLACE_WITH_YOUR_PROJECT_DROPDOWN_SELECTOR"
+    };
+    // --- END CONFIGURATION ---
+
+    const projectDropdown = document.querySelector(CONFIG.projectLookupSelector);
+
+    if (!projectDropdown) {
+        console.error("Infowise Script: ERROR - Could not find the Project Lookup dropdown.");
+        return;
+    }
+    
+    console.log("Infowise Script: 2. Found dropdown element:", projectDropdown);
+
+    async function populateFilteredLookup() {
+        console.log("Infowise Script: 4. Inside populateFilteredLookup, about to fetch...");
+        
+        const originalFirstOption = projectDropdown.options[0];
+        projectDropdown.innerHTML = '';
+        if (originalFirstOption) {
+            projectDropdown.appendChild(originalFirstOption);
+        }
+        
+        try {
+            const apiUrl = `/_api/web/lists/getbytitle('${CONFIG.sourceListName}')/items?$select=Id,Title&$filter=${CONFIG.statusColumnInternalName} eq '${CONFIG.statusToKeep}'&$orderby=Title`;
+            
+            console.log("Infowise Script: 5. Fetching URL:", apiUrl);
+            
+            const response = await fetch(apiUrl, {
+                headers: { "Accept": "application/json;odata=verbose" }
+            });
+
+            if (!response.ok) {
+                throw new Error(`SharePoint API Error: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const items = data.d.results;
+
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.Id;
+                option.text = item.Title;
+                projectDropdown.appendChild(option);
+            });
+            
+            console.log("Infowise Script: 6. Success! Dropdown populated.");
+
+        } catch (error) {
+            console.error("Infowise Script: ERROR in CATCH block:", error);
+        }
+    }
+
+    console.log("Infowise Script: 3. About to set timeout...");
+    setTimeout(populateFilteredLookup, 500);
+    
+})();
         sourceListName: "Project Names",
         
         // The INTERNAL name of the status column in that list.
