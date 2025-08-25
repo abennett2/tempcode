@@ -1,11 +1,9 @@
 (function(){
-  // Hide the “column name” line only for Rest of Form fields
   var TARGET_LABELS = ["Status","Project ID","Submitted By","Submitted On"];
 
   function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
   function q(sel,root){ return (root||document).querySelector(sel); }
   function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
-
   function findLabelNode(txt){
     var want = norm(txt).toLowerCase();
     var nodes = qa("label,.ms-Label,.infowise-label,th,[data-field-label]");
@@ -15,31 +13,18 @@
     }
     return null;
   }
-
-  function hideFooterFor(label){
+  function hideDescFor(label){
     var labelNode = findLabelNode(label);
     if (!labelNode) return;
     var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
-
-    // Common footer/description selectors seen under fields
-    var candidates = qa(
-      ".iw-control-name, .ms-TextField-description, .ms-TextField-fieldDescription, .field-description, .iw-description, small",
-      row
-    );
-
-    candidates.forEach(function(n){
-      var txt = norm(n.innerText||"");
-      // Hide if it looks like a footer: duplicates the label, or looks like “Column:”/“Internal name”
-      if (!txt) return;
-      if (txt.toLowerCase() === norm(label).toLowerCase() || /^(column|internal name)\b/i.test(txt)) {
-        n.style.display = "none";
-      }
-      // Also hide generic tiny footers that sit after the input as the last child
-      if (n === row.lastElementChild && n.tagName === "SMALL") {
-        n.style.display = "none";
-      }
-    });
+    qa(".fieldDesc", row).forEach(function(n){ n.style.display = "none"; });
   }
+  TARGET_LABELS.forEach(hideDescFor);
 
-  TARGET_LABELS.forEach(hideFooterFor);
+  // guard against re-renders
+  var formRoot = document.body;
+  if (window.MutationObserver){
+    new MutationObserver(function(){ TARGET_LABELS.forEach(hideDescFor); })
+      .observe(formRoot, {subtree:true, childList:true});
+  }
 })();
