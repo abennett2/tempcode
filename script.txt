@@ -3,16 +3,25 @@
 
     // --- CONFIGURATION ---
     const CONFIG = {
+        // The name of the list you are looking up to.
         sourceListName: "Project Names",
+        
+        // The INTERNAL name of the status column in that list.
         statusColumnInternalName: "Status",
+        
+        // The status value you want to see (e.g., "Active").
         statusToKeep: "Active",
-        projectLookupSelector: "#ComboBox21-input"
+        
+        // The CSS selector for your Project lookup dropdown on the form.
+        projectLookupSelector: "REPLACE_WITH_YOUR_PROJECT_DROPDOWN_SELECTOR"
     };
+    // --- END CONFIGURATION ---
 
     const projectDropdown = document.querySelector(CONFIG.projectLookupSelector);
 
     if (!projectDropdown) {
-        console.error("Ultimate Forms Script: Could not find the Project Lookup dropdown. Please check the 'projectLookupSelector'.");
+        // This check is kept as a safety measure.
+        console.error("Ultimate Forms Script: Could not find the Project Lookup dropdown.");
         return;
     }
 
@@ -20,7 +29,6 @@
      * Fetches active projects from the source list and populates the dropdown.
      */
     async function populateFilteredLookup() {
-        // Keep the original placeholder option (e.g., "(Select a value...)")
         const originalFirstOption = projectDropdown.options[0];
         projectDropdown.innerHTML = ''; // Clear existing options
         if (originalFirstOption) {
@@ -28,7 +36,6 @@
         }
         
         try {
-            // Construct the SharePoint REST API URL to get filtered items
             const apiUrl = `/_api/web/lists/getbytitle('${CONFIG.sourceListName}')/items?$select=Id,Title&$filter=${CONFIG.statusColumnInternalName} eq '${CONFIG.statusToKeep}'&$orderby=Title`;
             
             const response = await fetch(apiUrl, {
@@ -42,7 +49,6 @@
             const data = await response.json();
             const items = data.d.results;
 
-            // Add the filtered items as new options to the dropdown
             items.forEach(item => {
                 const option = document.createElement('option');
                 option.value = item.Id;
@@ -55,13 +61,9 @@
         }
     }
 
-    // --- SCRIPT EXECUTION ---
-    // Run the script to populate the dropdown when the form loads.
-    if (window.SP && window.SP.SOD) {
-        SP.SOD.executeFunc('sp.js', 'SP.ClientContext', populateFilteredLookup);
-    } else {
-        // Fallback for older pages or if sp.js is already loaded
-        document.addEventListener('DOMContentLoaded', populateFilteredLookup);
-    }
+    // --- SCRIPT EXECUTION (REVISED) ---
+    // A simple timeout is a more reliable way to ensure the form is ready
+    // before our script tries to modify it.
+    setTimeout(populateFilteredLookup, 500); // Run after a 500ms delay
     
 })();
