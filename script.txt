@@ -1,40 +1,30 @@
 (function() {
     'use strict';
-    
-    console.log("Infowise Script: 1. Starting...");
 
     // --- CONFIGURATION ---
     const CONFIG = {
         sourceListName: "Project Names",
         statusColumnInternalName: "Status",
         statusToKeep: "Active",
-        projectLookupSelector: "REPLACE_WITH_YOUR_PROJECT_DROPDOWN_SELECTOR"
+        projectLookupSelector: "#ComboBox21-input"
     };
     // --- END CONFIGURATION ---
 
     const projectDropdown = document.querySelector(CONFIG.projectLookupSelector);
 
     if (!projectDropdown) {
-        console.error("Infowise Script: ERROR - Could not find the Project Lookup dropdown.");
+        console.error("Ultimate Forms Script: Could not find the Project Lookup dropdown.");
         return;
     }
-    
-    console.log("Infowise Script: 2. Found dropdown element:", projectDropdown);
 
-    async function populateFilteredLookup() {
-        console.log("Infowise Script: 4. Inside populateFilteredLookup, about to fetch...");
-        
-        const originalFirstOption = projectDropdown.options[0];
-        projectDropdown.innerHTML = '';
-        if (originalFirstOption) {
-            projectDropdown.appendChild(originalFirstOption);
-        }
-        
+    /**
+     * Fetches the list of active project titles and removes any options
+     * from the dropdown that are not on that list.
+     */
+    async function removeInactiveProjects() {
         try {
-            const apiUrl = `/_api/web/lists/getbytitle('${CONFIG.sourceListName}')/items?$select=Id,Title&$filter=${CONFIG.statusColumnInternalName} eq '${CONFIG.statusToKeep}'&$orderby=Title`;
-            
-            console.log("Infowise Script: 5. Fetching URL:", apiUrl);
-            
+            // 1. Fetch the list of projects that SHOULD be in the dropdown.
+            const apiUrl = `/_api/web/lists/getbytitle('${CONFIG.sourceListName}')/items?$select=Title&$filter=${CONFIG.statusColumnInternalName} eq '${CONFIG.statusToKeep}'`;
             const response = await fetch(apiUrl, {
                 headers: { "Accept": "application/json;odata=verbose" }
             });
@@ -44,23 +34,33 @@
             }
 
             const data = await response.json();
-            const items = data.d.results;
+            const activeItems = data.d.results;
 
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.Id;
-                option.text = item.Title;
-                projectDropdown.appendChild(option);
-            });
-            
-            console.log("Infowise Script: 6. Success! Dropdown populated.");
+            // 2. Create a simple list of the titles for easy checking.
+            const validTitles = new Set(activeItems.map(item => item.Title));
+
+            // 3. Loop through all the options currently in the dropdown and remove the ones not on our list.
+            // We loop backwards because we are removing items from a live collection.
+            for (let i = projectDropdown.options.length - 1; i >= 0; i--) {
+                const option = projectDropdown.options[i];
+                
+                // Skip the placeholder option (e.g., "Select a value...")
+                if (!option.value || option.value === "0") {
+                    continue;
+                }
+
+                // If the option's text is NOT in our list of valid titles, remove it.
+                if (!validTitles.has(option.text)) {
+                    projectDropdown.remove(i);
+                }
+            }
 
         } catch (error) {
-            console.error("Infowise Script: ERROR in CATCH block:", error);
+            console.error("Ultimate Forms Script: Error while filtering lookup:", error);
         }
     }
 
-    console.log("Infowise Script: 3. About to set timeout...");
-    setTimeout(populateFilteredLookup, 500);
-    
+    // A simple timeout to ensure Infowise has loaded all the original options first.
+    setTimeout(removeInactiveProjects, 1000); // Wait 1 second before filtering.
+
 })();
