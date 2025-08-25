@@ -257,11 +257,11 @@
 })();
 
 (function(){
-  // Enable Save / Save & New only when Project chosen AND Status not Draft/Inactive.
+  // Gate Save / Save & New until: Project chosen AND Status NOT Draft/Inactive
   var LABELS = { lookup:"Project", status:"Status" };
   var BLOCKED = ["draft","inactive"]; // case-insensitive
 
-  /* helpers */
+  /* ---------- helpers ---------- */
   function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
   function q(sel,root){ return (root||document).querySelector(sel); }
   function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
@@ -319,44 +319,38 @@
     return norm(disp && disp.textContent || "");
   }
 
-  /* command bar */
-  var BUTTONS = { save:null, addNew:null };
-  function textOf(el){
-    return norm(((el && (el.innerText||el.textContent))||"")+" "+
-                (el && (el.getAttribute("aria-label")||""))+" "+
-                (el && (el.getAttribute("title")||"")));
+  /* ---------- classify buttons ---------- */
+  function labelish(el){
+    return norm(
+      ((el && (el.innerText||el.textContent))||"") + " " +
+      (el && (el.getAttribute("aria-label")||"")) + " " +
+      (el && (el.getAttribute("title")||"")) + " " +
+      (el && (el.name||""))
+    ).toLowerCase();
   }
-  function findButtons(){
-    var containers = qa(".iw-commandBar, .ms-CommandBar, [role='menubar'], .commandBar, .ms-OverflowSet");
+  function classifyButton(el){
+    var t = labelish(el);
+    if (!t) return null;
+    // ignore cancel/close/edit
+    if (/\b(cancel|close|edit)\b/.test(t)) return null;
+    // save & new / add new
+    if ((/\bsave\b/.test(t) && /\bnew\b/.test(t)) || /\badd\b.*\bnew\b/.test(t)) return "savenew";
+    // plain save (avoid catching “save as” menu items just in case)
+    if (/\bsave\b/.test(t) && !/\b(as|template|copy)\b/.test(t)) return "save";
+    return null;
+  }
+
+  function findCandidateButtons(){
+    var containers = qa(".iw-commandBar, .ms-CommandBar, [role='menubar'], .commandBar, .ms-OverflowSet, .ms-ContextualMenu");
     if (!containers.length) containers = [document];
-    var candidates = [];
-    containers.forEach(function(c){ candidates = candidates.concat(qa("button, a, div[role='button'], span[role='button']", c)); });
-
-    var save=null, add=null;
-    for (var i=0;i<candidates.length;i++){
-      var t = textOf(candidates[i]).toLowerCase();
-      if (!save && /\bsave\b/.test(t) && !/\bnew\b/.test(t)) save = candidates[i];                 // Save
-      if (!add && ((/\bsave\b/.test(t) && /\bnew\b/.test(t)) || /\badd\b.*\bnew\b/.test(t))) add = candidates[i]; // Save & New / Add New
-      if (save && add) break;
-    }
-    if (save) BUTTONS.save = save;
-    if (add)  BUTTONS.addNew = add;
+    var buttons=[];
+    containers.forEach(function(c){
+      buttons = buttons.concat(qa("button, a, [role='button'], .ms-Button", c));
+    });
+    return buttons.filter(function(el){ return classifyButton(el); });
   }
-  function setBtnDisabled(el, on){
-    if (!el) return;
-    if (on){
-      el.setAttribute("aria-disabled","true");
-      if ("disabled" in el) el.disabled = true;
-      el.style.pointerEvents="none"; el.style.opacity="0.45"; el.style.filter="grayscale(0.4)";
-    } else {
-      el.removeAttribute("aria-disabled");
-      if ("disabled" in el) el.disabled = false;
-      el.style.pointerEvents=""; el.style.opacity=""; el.style.filter="";
-    }
-  }
-  function disableBoth(){ findButtons(); setBtnDisabled(BUTTONS.save, true); setBtnDisabled(BUTTONS.addNew, true); }
 
-  /* gate */
+  /* ---------- gating ---------- */
   function criteriaMet(){
     var project = getLookupText();
     var status  = getStatusValue();
@@ -364,53 +358,85 @@
     if (!status)  return false;
     return BLOCKED.indexOf(status.toLowerCase()) === -1;
   }
-  function updateButtons(){
-    findButtons(); // in case bar re-rendered
+
+  function applyVisualState(){
     var ok = criteriaMet();
-    setBtnDisabled(BUTTONS.save,   !ok);
-    setBtnDisabled(BUTTONS.addNew, !ok);
+    findCandidateButtons().forEach(function(btn){
+      btn.dataset.iwGate = ok ? "open" : "blocked";
+      if (!ok){
+        // visual hint (best effort; renderer may override)
+        btn.style.opacity = "0.45";
+        btn.style.filter  = "grayscale(0.4)";
+        btn.style.cursor  = "not-allowed";
+        btn.setAttribute("aria-disabled","true");
+        if ("disabled" in btn) btn.disabled = true; // harmless if ignored
+      } else {
+        btn.style.opacity = "";
+        btn.style.filter  = "";
+        btn.style.cursor  = "";
+        btn.removeAttribute("aria-disabled");
+        if ("disabled" in btn) btn.disabled = false;
+      }
+    });
   }
 
-  /* init */
-  disableBoth();
-  // Debounce updates to avoid thrash
-  var pending=null;
-  function schedule(){ if (pending) cancelAnimationFrame(pending); pending = requestAnimationFrame(updateButtons); }
+  // Hard block: intercept clicks and keyboard activation before InfoWise sees them
+  function gateHandler(e){
+    var btn = e.target && e.target.closest && e.target.closest("button, a, [role='button'], .ms-Button");
+    if (!btn) return;
+    var kind = classifyButton(btn);
+    if (!kind) return; // not Save / Save & New
+    if (criteriaMet()) return; // allowed
 
-  // Watch just for childList changes (NOT attributes) to avoid loops
+    // Block it
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    // tiny nudge so users understand why nothing happens
+    try{
+      btn.animate([{transform:"translateX(0)"},{transform:"translateX(-3px)"},{transform:"translateX(3px)"},{transform:"translateX(0)"}],
+                  {duration:180,iterations:1});
+      btn.title = "Select a valid Project (not Draft/Inactive) before saving.";
+    }catch(_){}
+  }
+
+  /* ---------- init ---------- */
+  // Visual state on load (quiet if renderer overrides)
+  applyVisualState();
+
+  // Delegate events (capture = true to beat framework handlers)
+  document.addEventListener("click", gateHandler, true);
+  document.addEventListener("keydown", function(e){
+    if (e.key==="Enter" || e.key===" ") gateHandler(e);
+  }, true);
+
+  // Re-apply visuals when DOM changes (no attribute watching → no loops)
+  var pending=null;
+  function schedule(){ if (pending) cancelAnimationFrame(pending); pending = requestAnimationFrame(applyVisualState); }
   if (window.MutationObserver){
     new MutationObserver(function(){ schedule(); })
       .observe(document.body, {subtree:true, childList:true});
   }
 
-  // Wire changes on Project + Status fields
+  // Re-check as your Status field gets filled by the fetch
+  var tries=0, poll=setInterval(function(){ applyVisualState(); if(++tries>30) clearInterval(poll); }, 400);
+
+  // Also watch the specific field areas (cheaper than watching attributes)
   (function wire(label){
     var ln = findLabelNode(label); if(!ln) return;
     var el = findEditorNearLabel(ln);
     var row = (el && (el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div")||el.parentElement)) || ln.parentElement;
-    ["change","input","keyup","blur"].forEach(function(ev){
-      if (el) el.addEventListener(ev, schedule, true);
-    });
+    ["change","input","keyup","blur"].forEach(function(ev){ if (el) el.addEventListener(ev, schedule, true); });
     if (row && window.MutationObserver){
-      new MutationObserver(function(){ schedule(); })
-        .observe(row, {subtree:true, childList:true});
+      new MutationObserver(function(){ schedule(); }).observe(row, {subtree:true, childList:true});
     }
   })(LABELS.lookup);
   (function wireStatus(){
     var ln = findLabelNode(LABELS.status); if(!ln) return;
     var el = findEditorNearLabel(ln);
     var row = (el && (el.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, div")||el.parentElement)) || ln.parentElement;
-    ["change","input","keyup","blur"].forEach(function(ev){
-      if (el) el.addEventListener(ev, schedule, true);
-    });
+    ["change","input","keyup","blur"].forEach(function(ev){ if (el) el.addEventListener(ev, schedule, true); });
     if (row && window.MutationObserver){
-      new MutationObserver(function(){ schedule(); })
-        .observe(row, {subtree:true, childList:true});
+      new MutationObserver(function(){ schedule(); }).observe(row, {subtree:true, childList:true});
     }
   })();
-
-  // Small safety poll to catch async fetch filling Status
-  var tries=0, poll=setInterval(function(){ updateButtons(); if(++tries>20) clearInterval(poll); }, 500);
-  // Initial evaluation after a tick (lets the bar render)
-  setTimeout(updateButtons, 150);
 })();
