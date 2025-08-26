@@ -3,6 +3,8 @@
   var PROJECT_LIST_TITLE = "Project Names";
   var SECTION_CLASS = "rest-of-form";
   var SECTION_HEADER_TEXT = "Rest of Form";
+  var STORAGE_KEY = "iw_last_project";     // where we remember the user's last project
+  var SAVE_NEW_HINT_KEY = "iw_armed_addnew"; // used during in-place Save & New
   /* ==================== */
 
   // Form labels (exact; trailing "*" is okay)
@@ -13,8 +15,7 @@
     projId: "Project ID",
     submittedBy: "Submitted By",
     submittedOn: "Submitted On",
-    deliverableNo: "Deliverable Number",
-    completed: "Completed"
+    deliverableNo: "Deliverable Number"
   };
 
   // ---------- DOM helpers ----------
@@ -65,8 +66,6 @@
         var opt=qa("option",inputEl).find(function(o){return o.value==text;});
         if(!opt && text){ opt=document.createElement("option"); opt.value=text; opt.text=text; inputEl.appendChild(opt); }
         inputEl.value=text;
-      } else if (inputEl.type === "checkbox"){
-        inputEl.checked = !!(text===true || text==="true" || text==="1" || String(text).toLowerCase()==="yes");
       } else {
         inputEl.value=text;
       }
@@ -76,11 +75,8 @@
       displayEl.textContent=text; displayEl.style.minHeight="1.2em";
     }
   }
-
-  // Lock text/select/contenteditable read-only (submit-safe)
   function lock(el){
     if(!el) return;
-    if (el.type === "checkbox" || el.type === "radio") { return; } // handled by lockCheckboxHard
     if(/INPUT|TEXTAREA/.test(el.tagName)){
       el.readOnly=true; el.setAttribute("aria-readonly","true");
       el.style.background="#f5f5f5"; el.style.pointerEvents="none";
@@ -92,65 +88,6 @@
       el.setAttribute("contenteditable","false"); el.style.pointerEvents="none"; el.style.background="#f5f5f5";
     }
   }
-
-  // HARD lock for checkbox/toggle: block at wrapper-level & revert changes
-  function lockCheckboxHard(labelNode, inputEl){
-    // Resolve the row/wrapper reliably
-    var row = (labelNode && (labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div")))
-           || (inputEl && inputEl.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div"))
-           || document.body;
-
-    // If Infowise rendered a Fluent UI toggle, grab its wrapper too
-    var wrapper = row && (row.querySelector(".ms-Toggle") || row.querySelector(".ms-Checkbox") || row);
-
-    // If the actual input isn't found yet, try to locate one inside the wrapper/row
-    if (!inputEl && row) {
-      inputEl = (row.querySelector("input[type='checkbox']") ||
-                 row.querySelector(".ms-Toggle-input") ||
-                 row.querySelector("input[role='switch']"));
-    }
-    if (!inputEl) return;
-
-    // Freeze current value
-    var fixed = !!inputEl.checked;
-
-    // Visual/read-only hints (do NOT 'disable' or it may be skipped on save)
-    inputEl.setAttribute("aria-readonly","true");
-    inputEl.tabIndex = -1;
-    if (wrapper) {
-      wrapper.setAttribute("aria-disabled","true");
-      wrapper.style.pointerEvents = "none"; // blocks label/track clicks
-      wrapper.style.opacity = "0.95";
-    } else {
-      row.style.pointerEvents = "none";
-    }
-
-    // Revert any value drift (programmatic or UI)
-    function forceBack(){
-      if (inputEl.checked !== fixed) inputEl.checked = fixed;
-    }
-    ["change","input"].forEach(function(ev){
-      inputEl.addEventListener(ev, function(e){ forceBack(); e.preventDefault(); e.stopImmediatePropagation(); }, true);
-    });
-
-    // Global capture: if anything inside the row is interacted with, block it
-    function stopper(e){
-      if (!row.contains(e.target)) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-    }
-    ["pointerdown","click","mousedown","mouseup","touchstart","keydown","keyup"].forEach(function(ev){
-      document.addEventListener(ev, stopper, true);
-    });
-
-    // Survive re-renders
-    if (window.MutationObserver){
-      new MutationObserver(function(){ forceBack(); }).observe(row, {subtree:true, childList:true, attributes:true});
-    }
-    // Safety poll (covers delayed re-templates)
-    var tries = 0, t = setInterval(function(){ forceBack(); if (++tries>20) clearInterval(t); }, 300);
-  }
-
   function hide(el){ if (el) el.style.display="none"; }
   function show(el){ if (el) el.style.display=""; }
 
@@ -164,6 +101,10 @@
     var tkn=row&&(q("[data-value]",row)||q(".ms-BasePicker-text,.selected,.tagItemText,.pickerText",row));
     if (tkn && tkn.textContent) return tkn.textContent.trim();
     return (lookupEl.value||"").trim();
+  }
+  function isLookupEmpty(lookupEl){
+    var t = getLookupText(lookupEl);
+    return !t || !t.trim();
   }
   function setLookupByText(lookupEl, text){
     if (!lookupEl || !text) return false;
@@ -251,30 +192,27 @@
   }
 
   // ---------- Resolve form elements ----------
-  var lookupNode = findLabelNode(LABELS.lookup);
+  var lookupNode   = findLabelNode(LABELS.lookup);
   var deliverableNode = findLabelNode(LABELS.deliverable);
-  var statusNode = findLabelNode(LABELS.status);
-  var idNode     = findLabelNode(LABELS.projId);
-  var subByNode  = findLabelNode(LABELS.submittedBy);
-  var subOnNode  = findLabelNode(LABELS.submittedOn);
-  var delivNoNode = findLabelNode(LABELS.deliverableNo);
-  var completedNode = findLabelNode(LABELS.completed);
+  var statusNode   = findLabelNode(LABELS.status);
+  var idNode       = findLabelNode(LABELS.projId);
+  var subByNode    = findLabelNode(LABELS.submittedBy);
+  var subOnNode    = findLabelNode(LABELS.submittedOn);
+  var delivNoNode  = findLabelNode(LABELS.deliverableNo);
 
-  var lookupEl   = findEditorNearLabel(lookupNode);
-  var deliverableIn = findEditorNearLabel(deliverableNode);
-  var statusIn   = findEditorNearLabel(statusNode), statusDisp = statusIn?null:findDisplayValueNode(statusNode);
-  var projIdIn   = findEditorNearLabel(idNode),     projIdDisp = projIdIn?null:findDisplayValueNode(idNode);
-  var subByIn    = findEditorNearLabel(subByNode),  subByDisp  = subByIn?null:findDisplayValueNode(subByNode);
-  var subOnIn    = findEditorNearLabel(subOnNode),  subOnDisp  = subOnIn?null:findDisplayValueNode(subOnNode);
-  var delivNoIn  = findEditorNearLabel(delivNoNode);
-  var completedIn= findEditorNearLabel(completedNode);
+  var lookupEl     = findEditorNearLabel(lookupNode);
+  var deliverableIn= findEditorNearLabel(deliverableNode);
+  var statusIn     = findEditorNearLabel(statusNode), statusDisp = statusIn?null:findDisplayValueNode(statusNode);
+  var projIdIn     = findEditorNearLabel(idNode),     projIdDisp = projIdIn?null:findDisplayValueNode(idNode);
+  var subByIn      = findEditorNearLabel(subByNode),  subByDisp  = subByIn?null:findDisplayValueNode(subByNode);
+  var subOnIn      = findEditorNearLabel(subOnNode),  subOnDisp  = subOnIn?null:findDisplayValueNode(subOnNode);
+  var delivNoIn    = findEditorNearLabel(delivNoNode);
 
-  var sectionEl  = findSectionElement();
+  var sectionEl    = findSectionElement();
   if (!lookupEl || !sectionEl) return;
 
-  // Lock requested fields (submit-safe); checkbox uses hard lock
+  // Lock read-only fields
   [statusIn, projIdIn, subByIn, subOnIn, delivNoIn].forEach(lock);
-  lockCheckboxHard(completedNode, completedIn);
 
   // Hide visible "Rest of Form" header inside the section
   (function hideSectionHeader(){
@@ -300,36 +238,46 @@
     setControlValue(projIdIn,  projIdDisp,  bizIdVal!=null ? bizIdVal : "");
   }
 
-  // ---- Remember Project on Save & New, and clear Deliverable on the next Open ----
-  var STORAGE_KEY = "iw_keep_project";
-  function rememberProjectForNext(){
-    try {
-      var text = getLookupText(lookupEl);
+  // ---------- Sticky Project memory (works on reload OR in-place reset) ----------
+  function storeLastProject(text){
+    try{
       if (!text) return;
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify({text:text, t:Date.now()}));
-    } catch(_){}
+    }catch(_){}
   }
-  function applyRememberedProject(){
-    try {
+  function loadLastProject(){
+    try{
       var raw = sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      var obj = JSON.parse(raw || "{}");
-      // expire after ~15 minutes
-      if (!obj || !obj.text || (Date.now() - (obj.t||0) > 15*60*1000)) {
-        sessionStorage.removeItem(STORAGE_KEY);
-        return;
-      }
-      // Set the lookup and clear Deliverable
-      setLookupByText(lookupEl, obj.text);
-      if (deliverableIn) setControlValue(deliverableIn, null, "");
-      // kick our normal update to refresh Status/ID
+      if (!raw) return null;
+      var obj = JSON.parse(raw||"{}");
+      if (!obj || !obj.text) return null;
+      // expire after 30 minutes
+      if (Date.now() - (obj.t||0) > 30*60*1000) { sessionStorage.removeItem(STORAGE_KEY); return null; }
+      return obj.text;
+    }catch(_){ return null; }
+  }
+  function applyRememberedProjectIfEmpty(clearDeliverable){
+    var saved = loadLastProject();
+    if (!saved) return false;
+    if (isLookupEmpty(lookupEl)){
+      setLookupByText(lookupEl, saved);
+      if (clearDeliverable && deliverableIn) setControlValue(deliverableIn, null, "");
+      // kick normal update to refresh Status/ID
       setTimeout(update, 50);
-      // one-time apply
-      sessionStorage.removeItem(STORAGE_KEY);
-    } catch(_){}
+      return true;
+    }
+    return false;
   }
 
-  // Robust: catch early (pointerdown) + normal click; cover overflow/menu variants
+  // Remember on user selection change (most robust; also covers Save & New)
+  ["change","input","keyup","blur"].forEach(function(ev){
+    lookupEl.addEventListener(ev, function(){
+      var txt = getLookupText(lookupEl);
+      if (txt) storeLastProject(txt);
+    }, true);
+  });
+
+  // Arm a brief watcher when user triggers "Save & New" / "Add New" (in-place reset)
   (function(){
     var ADD_NEW_PATTERNS = [
       "save & new","save and new","save and create new",
@@ -342,22 +290,59 @@
                   (el.getAttribute && (el.getAttribute("title")||"") || "") ).toLowerCase();
       return ADD_NEW_PATTERNS.some(function(p){ return txt.indexOf(p) >= 0; });
     }
+    function armWatcher(){
+      try{ sessionStorage.setItem(SAVE_NEW_HINT_KEY, "1"); }catch(_){}
+      var saved = loadLastProject();
+      if (!saved) return;
+
+      // Poll briefly to catch the moment the form resets in-place
+      var tries = 0;
+      var t = setInterval(function(){
+        // Once the Project field is empty (fresh form), apply saved + clear Deliverable
+        if (isLookupEmpty(lookupEl)){
+          setLookupByText(lookupEl, saved);
+          if (deliverableIn) setControlValue(deliverableIn, null, "");
+          setTimeout(update, 50);
+          clearInterval(t);
+          try{ sessionStorage.removeItem(SAVE_NEW_HINT_KEY); }catch(_){}
+          return;
+        }
+        if (++tries > 80) { // ~16s max
+          clearInterval(t);
+          try{ sessionStorage.removeItem(SAVE_NEW_HINT_KEY); }catch(_){}
+        }
+      }, 200);
+    }
+
     function handler(e){
       var btn = e.target && e.target.closest && e.target.closest("button, a, [role='button'], .ms-Button, .ms-ContextualMenu-item, .ms-CommandBarItem");
-      if (looksLikeAddNew(btn)) { rememberProjectForNext(); }
+      if (looksLikeAddNew(btn)) {
+        // Ensure we’ve recorded the latest selection just before save
+        var txt = getLookupText(lookupEl);
+        if (txt) storeLastProject(txt);
+        armWatcher();
+      }
     }
     document.addEventListener("pointerdown", handler, true);
     document.addEventListener("click", handler, true);
   })();
 
-  var lastText="";
+  // Also apply remembered project at real reload/open
+  (function(){
+    var armed = false;
+    try{ armed = sessionStorage.getItem(SAVE_NEW_HINT_KEY) === "1"; }catch(_){}
+    // If armed (coming back from Save & New), clear Deliverable; otherwise only set if Project empty
+    applyRememberedProjectIfEmpty(armed);
+    try{ if (armed) sessionStorage.removeItem(SAVE_NEW_HINT_KEY); }catch(_){}
+  })();
+
+  // ---------- Project-driven show/hide + data fill ----------
   function update(){
     var text = getLookupText(lookupEl);
 
-    // show/hide section
-    if (text && text.length) show(sectionEl); else { hide(sectionEl); applyRecord(null); return; }
-    if (text === lastText) return;
-    lastText = text;
+    // show/hide lower section
+    if (text && text.length) show(sectionEl);
+    else { hide(sectionEl); applyRecord(null); return; }
 
     // fetch by exact Title; fallback to loose match; try multiple bases
     fetchProjectByExactTitle(text, function(err,res){
@@ -370,10 +355,7 @@
     });
   }
 
-  // Apply remembered choice first (when returning after Save & New)
-  applyRememberedProject();
-
-  // wire up listeners / observer / safety poll
+  // Initial pass + observers
   update();
   ["change","input","keyup"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
   lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
@@ -382,63 +364,4 @@
     new MutationObserver(function(){ update(); }).observe(row, {subtree:true, childList:true, attributes:true, characterData:true});
   }
   var ticks=0, t=setInterval(function(){ update(); if(++ticks>30) clearInterval(t); }, 500);
-})();
-
-(function(){
-  // Hide .fieldDesc “footer” lines for these labels
-  var TARGET_LABELS = [
-    "Project","Status","Project ID","Submitted By","Submitted On",
-    "Deliverable Number","Completed"
-  ];
-
-  function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
-  function q(sel,root){ return (root||document).querySelector(sel); }
-  function qa(sel,root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
-  function findLabelNode(txt){
-    var want = norm(txt).toLowerCase();
-    var nodes = qa("label,.ms-Label,.infowise-label,th,[data-field-label]");
-    for (var i=0;i<nodes.length;i++){
-      var t = norm(nodes[i].innerText||"").toLowerCase();
-      if (t === want) return nodes[i];
-    }
-    return null;
-  }
-  function hideDescFor(label){
-    var labelNode = findLabelNode(label);
-    if (!labelNode) return;
-    var row = labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || labelNode.parentElement;
-    qa(".fieldDesc", row).forEach(function(n){ n.style.display = "none"; });
-  }
-  TARGET_LABELS.forEach(hideDescFor);
-
-  // guard against re-renders
-  var formRoot = document.body;
-  if (window.MutationObserver){
-    new MutationObserver(function(){ TARGET_LABELS.forEach(hideDescFor); })
-      .observe(formRoot, {subtree:true, childList:true});
-  }
-})();
-
-/* Hide the default command bar (Save/Cancel above the form) */
-(function(){
-  function hideBars(){
-    var sels = [
-      ".iw-commandBar",              // InfoWise bar above the form
-      ".ms-CommandBar",              // Fluent UI
-      "[role='menubar']",
-      "[data-automationid='CommandBar']"
-    ];
-    sels.forEach(function(sel){
-      document.querySelectorAll(sel).forEach(function(n){
-        // Only hide top bars; skip anything inside our inner form sections
-        if (!n.closest(".iw-container, .rest-of-form")) {
-          n.style.display = "none";
-        }
-      });
-    });
-  }
-  hideBars();
-  if (window.MutationObserver){
-    new MutationObserver(hideBars).observe(document.body, {subtree:true, childList:true});
-  }
 })();
