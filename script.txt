@@ -1,65 +1,15 @@
-(function() {
-    'use strict';
+/* Keep the input in the DOM (so it posts), but block user interaction */
+.completed-lock,
+.completed-lock .ms-Toggle,
+.completed-lock .ms-Checkbox { position: relative; }
 
-    // --- CONFIGURATION ---
-    const CONFIG = {
-        sourceListName: "Project Names",
-        statusColumnInternalName: "Status",
-        statusToKeep: "Active",
-        projectLookupSelector: "#ComboBox21-input"
-    };
-    // --- END CONFIGURATION ---
+.completed-lock::after {
+  content: ""; position: absolute; inset: 0; z-index: 2;
+  /* acts as a clear overlay that eats clicks/taps */
+}
 
-    const projectDropdown = document.querySelector(CONFIG.projectLookupSelector);
-    if (!projectDropdown) {
-        console.error("Ultimate Forms Script: Could not find the Project Lookup dropdown.");
-        return;
-    }
+.completed-lock label { cursor: default !important; }
+.completed-lock .ms-Toggle, .completed-lock .ms-Checkbox { opacity: .95; }
 
-    /**
-     * This function now automatically determines the correct site URL.
-     */
-    async function removeInactiveProjects() {
-        try {
-            // --- Environment Detection Logic ---
-            let siteUrl;
-            const currentUrl = window.location.href.toLowerCase();
-            const devIdentifier = "/charters_dev";
-
-            // Check if the form is running in the dev environment.
-            if (currentUrl.includes(devIdentifier)) {
-                siteUrl = `${window.location.protocol}//${window.location.hostname}/sites/ePMO/Charters_dev`;
-            } else {
-                siteUrl = `${window.location.protocol}//${window.location.hostname}/sites/ePMO/Charters`;
-            }
-            // --- End of Logic ---
-
-            const apiUrl = `${siteUrl}/_api/web/lists/getbytitle('${CONFIG.sourceListName}')/items?$select=Title&$filter=${CONFIG.statusColumnInternalName} eq '${CONFIG.statusToKeep}'`;
-            
-            const response = await fetch(apiUrl, {
-                headers: { "Accept": "application/json;odata=verbose" }
-            });
-
-            if (!response.ok) {
-                throw new Error(`SharePoint API Error: ${response.statusText}`);
-            }
-
-            const data = await response.json();
-            const activeItems = data.d.results;
-            const validTitles = new Set(activeItems.map(item => item.Title));
-
-            // Since the target is an input, we cannot remove options. This script assumes the control
-            // is populated by another means and is here to demonstrate the environment-aware logic.
-            // Further customization would be needed to handle repopulating a non-select control.
-            console.log("Found valid project titles:", Array.from(validTitles));
-
-
-        } catch (error) {
-            console.error("Ultimate Forms Script: Error while filtering lookup:", error);
-        }
-    }
-
-    // Wait for the form and its data to likely be loaded before running.
-    setTimeout(removeInactiveProjects, 1500);
-
-})();
+/* Optional: if allowed by your CSS area (not the per-field dropdown), this helps too */
+.completed-lock input[type="checkbox"], .completed-lock .ms-Toggle-input { pointer-events: none; }
