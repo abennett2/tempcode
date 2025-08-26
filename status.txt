@@ -1,8 +1,8 @@
 (function(){
   /* ====== CONFIG ====== */
-  var PROJECT_LIST_TITLE = "Project Names";   // exact list title
-  var SECTION_CLASS = "rest-of-form";         // your container CSS class
-  var SECTION_HEADER_TEXT = "Rest of Form";   // fallback by header
+  var PROJECT_LIST_TITLE = "Project Names";
+  var SECTION_CLASS = "rest-of-form";
+  var SECTION_HEADER_TEXT = "Rest of Form"; 
   /* ==================== */
 
   // Form labels (exact; trailing "*" is okay)
@@ -11,7 +11,10 @@
     status: "Status",
     projId: "Project ID",
     submittedBy: "Submitted By",
-    submittedOn: "Submitted On"
+    submittedOn: "Submitted On",
+    // NEW:
+    deliverableNo: "Deliverable Number",
+    completed: "Completed"
   };
 
   // ---------- DOM helpers ----------
@@ -36,7 +39,7 @@
   }
   function findDisplayValueNode(labelNode){
     if (!labelNode) return null;
-    var row=labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div")||labelNode.parentElement;
+    var row=labelNode.closest(".iw-control, .ms-Grid-row, .ms-Stack, .ms-Grid, .row, div")||labelNode.parentElement;
     var cands=[".iw-control-value",".field-value",".ms-TextField-field",".ms-TextField-wrapper",".value","span","div"];
     for (var i=0;i<cands.length;i++){
       var n=q(cands[i],row); if(!n||n===labelNode) continue;
@@ -62,15 +65,28 @@
         var opt=qa("option",inputEl).find(function(o){return o.value==text;});
         if(!opt && text){ opt=document.createElement("option"); opt.value=text; opt.text=text; inputEl.appendChild(opt); }
         inputEl.value=text;
-      } else { inputEl.value=text; }
+      } else if (inputEl.type === "checkbox"){
+        inputEl.checked = !!(text === true || text === "true" || text === "1" || text === "Yes");
+      } else {
+        inputEl.value=text;
+      }
       var e1=document.createEvent("HTMLEvents"); e1.initEvent("input", true, false);  inputEl.dispatchEvent(e1);
       var e2=document.createEvent("HTMLEvents"); e2.initEvent("change",true, false);  inputEl.dispatchEvent(e2);
     } else if (displayEl){
       displayEl.textContent=text; displayEl.style.minHeight="1.2em";
     }
   }
+
+  // UPDATED: lock() now handles checkboxes cleanly (read-only, but still submittable)
   function lock(el){
     if(!el) return;
+    if (el.type === "checkbox" || el.type === "radio"){
+      el.setAttribute("aria-readonly","true");
+      el.style.pointerEvents="none";
+      el.addEventListener("click", function(e){ e.preventDefault(); }, true);
+      el.addEventListener("keydown", function(e){ e.preventDefault(); }, true);
+      return;
+    }
     if(/INPUT|TEXTAREA/.test(el.tagName)){
       el.readOnly=true; el.setAttribute("aria-readonly","true");
       el.style.background="#f5f5f5"; el.style.pointerEvents="none";
@@ -170,18 +186,38 @@
   var idNode     = findLabelNode(LABELS.projId);
   var subByNode  = findLabelNode(LABELS.submittedBy);
   var subOnNode  = findLabelNode(LABELS.submittedOn);
+  // NEW:
+  var delivNoNode = findLabelNode(LABELS.deliverableNo);
+  var completedNode = findLabelNode(LABELS.completed);
 
   var lookupEl   = findEditorNearLabel(lookupNode);
   var statusIn   = findEditorNearLabel(statusNode), statusDisp = statusIn?null:findDisplayValueNode(statusNode);
   var projIdIn   = findEditorNearLabel(idNode),     projIdDisp = projIdIn?null:findDisplayValueNode(idNode);
   var subByIn    = findEditorNearLabel(subByNode),  subByDisp  = subByIn?null:findDisplayValueNode(subByNode);
   var subOnIn    = findEditorNearLabel(subOnNode),  subOnDisp  = subOnIn?null:findDisplayValueNode(subOnNode);
+  // NEW:
+  var delivNoIn  = findEditorNearLabel(delivNoNode);
+  var completedIn= findEditorNearLabel(completedNode);
+
   var sectionEl  = findSectionElement();
 
   if (!lookupEl || !sectionEl) return;
 
   // Lock requested fields (submit-safe)
-  [statusIn, projIdIn, subByIn, subOnIn].forEach(lock);
+  [statusIn, projIdIn, subByIn, subOnIn, delivNoIn, completedIn].forEach(lock);
+
+  // Hide the visible "Rest of Form" header inside the section (keep class for our logic)
+  (function hideSectionHeader(){
+    var se = sectionEl;
+    if (!se) return;
+    qa('[role="heading"], h1, h2, h3, h4', se).forEach(function(h){
+      if (!SECTION_HEADER_TEXT || norm(h.innerText||"").toLowerCase()===SECTION_HEADER_TEXT.toLowerCase()){
+        h.style.display = "none";
+      }
+    });
+    var hdr = q('.iw-container-header, .ms-Stack > .ms-Text', se);
+    if (hdr) hdr.style.display = "none";
+  })();
 
   function applyRecord(rec){
     if (!rec){ setControlValue(statusIn,statusDisp,""); setControlValue(projIdIn,projIdDisp,""); return; }
@@ -226,7 +262,11 @@
 })();
 
 (function(){
-  var TARGET_LABELS = ["Project","Status","Project ID","Submitted By","Submitted On"];
+  // UPDATED: add new labels to hide their .fieldDesc “footer” lines
+  var TARGET_LABELS = [
+    "Project","Status","Project ID","Submitted By","Submitted On",
+    "Deliverable Number","Completed"
+  ];
 
   function norm(t){ return String(t||"").replace(/\s+/g," ").replace(/\s*\*+$/,"").trim(); }
   function q(sel,root){ return (root||document).querySelector(sel); }
@@ -253,5 +293,29 @@
   if (window.MutationObserver){
     new MutationObserver(function(){ TARGET_LABELS.forEach(hideDescFor); })
       .observe(formRoot, {subtree:true, childList:true});
+  }
+})();
+
+/* Hide the default command bar (Save/Cancel above the form) */
+(function(){
+  function hideBars(){
+    var sels = [
+      ".iw-commandBar",              // InfoWise bar above the form
+      ".ms-CommandBar",              // Fluent UI
+      "[role='menubar']",
+      "[data-automationid='CommandBar']"
+    ];
+    sels.forEach(function(sel){
+      document.querySelectorAll(sel).forEach(function(n){
+        // Only hide top bars; skip anything inside our inner form sections
+        if (!n.closest(".iw-container, .rest-of-form")) {
+          n.style.display = "none";
+        }
+      });
+    });
+  }
+  hideBars();
+  if (window.MutationObserver){
+    new MutationObserver(hideBars).observe(document.body, {subtree:true, childList:true});
   }
 })();
