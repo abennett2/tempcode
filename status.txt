@@ -8,13 +8,13 @@
   // Form labels (exact; trailing "*" is okay)
   var LABELS = {
     lookup: "Project",
+    deliverable: "Deliverable",         // NEW: we'll clear this on Save & New
     status: "Status",
     projId: "Project ID",
     submittedBy: "Submitted By",
     submittedOn: "Submitted On",
-    // NEW:
-    deliverableNo: "Deliverable Number",
-    completed: "Completed"
+    deliverableNo: "Deliverable Number",// NEW: read-only
+    completed: "Completed"              // NEW: hard read-only
   };
 
   // ---------- DOM helpers ----------
@@ -66,7 +66,7 @@
         if(!opt && text){ opt=document.createElement("option"); opt.value=text; opt.text=text; inputEl.appendChild(opt); }
         inputEl.value=text;
       } else if (inputEl.type === "checkbox"){
-        inputEl.checked = !!(text === true || text === "true" || text === "1" || text === "Yes");
+        inputEl.checked = !!(text===true || text==="true" || text==="1" || String(text).toLowerCase()==="yes");
       } else {
         inputEl.value=text;
       }
@@ -77,16 +77,10 @@
     }
   }
 
-  // UPDATED: lock() now handles checkboxes cleanly (read-only, but still submittable)
+  // Lock text/select/contenteditable read-only (submit-safe)
   function lock(el){
     if(!el) return;
-    if (el.type === "checkbox" || el.type === "radio"){
-      el.setAttribute("aria-readonly","true");
-      el.style.pointerEvents="none";
-      el.addEventListener("click", function(e){ e.preventDefault(); }, true);
-      el.addEventListener("keydown", function(e){ e.preventDefault(); }, true);
-      return;
-    }
+    if (el.type === "checkbox" || el.type === "radio") { return; } // handled by lockCheckboxHard
     if(/INPUT|TEXTAREA/.test(el.tagName)){
       el.readOnly=true; el.setAttribute("aria-readonly","true");
       el.style.background="#f5f5f5"; el.style.pointerEvents="none";
@@ -98,6 +92,45 @@
       el.setAttribute("contenteditable","false"); el.style.pointerEvents="none"; el.style.background="#f5f5f5";
     }
   }
+
+  // HARD lock for checkbox/toggle: block at row-level & revert changes
+  function lockCheckboxHard(labelNode, inputEl){
+    if (!inputEl) return;
+    var row = (labelNode && (labelNode.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div"))) || inputEl.closest(".iw-control, .ms-Grid-row, .row, .ms-Stack, .ms-Grid, div") || document.body;
+    var fixed = inputEl.checked;
+
+    // Visual hint
+    inputEl.style.pointerEvents = "none";
+    if (row) { row.style.opacity = "0.95"; }
+
+    // Revert on any attempted change
+    inputEl.addEventListener("change", function(e){
+      if (inputEl.checked !== fixed){
+        inputEl.checked = fixed;
+        e.preventDefault(); e.stopImmediatePropagation();
+      }
+    }, true);
+
+    // Kill interactions on the whole row (captures label/ms-Toggle clicks)
+    ["click","mousedown","mouseup","keydown","keyup","touchstart"].forEach(function(ev){
+      row.addEventListener(ev, function(e){
+        var within = e.target && row.contains(e.target);
+        if (!within) return;
+        // allow focus/scroll, block activation
+        if (/click|mousedown|mouseup|keydown|keyup|touchstart/.test(ev)){
+          e.preventDefault(); e.stopImmediatePropagation();
+        }
+      }, true);
+    });
+
+    // For re-renders, keep forcing the value back
+    if (window.MutationObserver){
+      new MutationObserver(function(){
+        if (inputEl.checked !== fixed) inputEl.checked = fixed;
+      }).observe(row, {subtree:true, childList:true, attributes:true});
+    }
+  }
+
   function hide(el){ if (el) el.style.display="none"; }
   function show(el){ if (el) el.style.display=""; }
 
@@ -112,15 +145,33 @@
     if (tkn && tkn.textContent) return tkn.textContent.trim();
     return (lookupEl.value||"").trim();
   }
+  function setLookupByText(lookupEl, text){
+    if (!lookupEl || !text) return false;
+    if (lookupEl.tagName==="SELECT"){
+      var opts = qa("option", lookupEl);
+      for (var i=0;i<opts.length;i++){
+        if (norm(opts[i].text).toLowerCase() === norm(text).toLowerCase()){
+          lookupEl.selectedIndex = i;
+          ["input","change"].forEach(function(ev){ var e=document.createEvent("HTMLEvents"); e.initEvent(ev,true,false); lookupEl.dispatchEvent(e); });
+          return true;
+        }
+      }
+      return false;
+    } else {
+      lookupEl.value = text;
+      ["input","change","keyup","blur"].forEach(function(ev){ var e=document.createEvent("HTMLEvents"); e.initEvent(ev,true,false); lookupEl.dispatchEvent(e); });
+      return true;
+    }
+  }
 
-  // ---------- REST across candidate bases (no _spPageContextInfo) ----------
+  // ---------- REST across candidate bases ----------
   function candidateBases(){
     var origin=location.origin;
     var parts=location.pathname.split("/").filter(Boolean);
     var idx = parts.findIndex(function(p){ p=p.toLowerCase(); return p==="sites" || p==="teams"; });
     var start = (idx>=0 ? idx : 0);
     var stops = {"lists":1,"forms":1,"sitepages":1,"pages":1,"_layouts":1,"catalogs":1};
-    var bases=[origin]; // root first
+    var bases=[origin];
     for (var end=parts.length; end>start+1; end--){
       var last = parts[end-1].toLowerCase();
       if (stops[last]) continue;
@@ -168,7 +219,6 @@
     });
   }
 
-  // Key selection (handles encoded spaces/variants)
   function encSpaces(s){return s?s.replace(/ /g,"_x0020_"):s;}
   function canon(s){return String(s||"").toLowerCase().replace(/_x00[0-9a-f]{2}_/g," ").replace(/[^a-z0-9]/g,"");}
   function pickKey(obj, prefs, must){
@@ -182,31 +232,31 @@
 
   // ---------- Resolve form elements ----------
   var lookupNode = findLabelNode(LABELS.lookup);
+  var deliverableNode = findLabelNode(LABELS.deliverable);
   var statusNode = findLabelNode(LABELS.status);
   var idNode     = findLabelNode(LABELS.projId);
   var subByNode  = findLabelNode(LABELS.submittedBy);
   var subOnNode  = findLabelNode(LABELS.submittedOn);
-  // NEW:
   var delivNoNode = findLabelNode(LABELS.deliverableNo);
   var completedNode = findLabelNode(LABELS.completed);
 
   var lookupEl   = findEditorNearLabel(lookupNode);
+  var deliverableIn = findEditorNearLabel(deliverableNode);
   var statusIn   = findEditorNearLabel(statusNode), statusDisp = statusIn?null:findDisplayValueNode(statusNode);
   var projIdIn   = findEditorNearLabel(idNode),     projIdDisp = projIdIn?null:findDisplayValueNode(idNode);
   var subByIn    = findEditorNearLabel(subByNode),  subByDisp  = subByIn?null:findDisplayValueNode(subByNode);
   var subOnIn    = findEditorNearLabel(subOnNode),  subOnDisp  = subOnIn?null:findDisplayValueNode(subOnNode);
-  // NEW:
   var delivNoIn  = findEditorNearLabel(delivNoNode);
   var completedIn= findEditorNearLabel(completedNode);
 
   var sectionEl  = findSectionElement();
-
   if (!lookupEl || !sectionEl) return;
 
-  // Lock requested fields (submit-safe)
-  [statusIn, projIdIn, subByIn, subOnIn, delivNoIn, completedIn].forEach(lock);
+  // Lock requested fields (submit-safe); checkbox uses hard lock
+  [statusIn, projIdIn, subByIn, subOnIn, delivNoIn].forEach(lock);
+  lockCheckboxHard(completedNode, completedIn);
 
-  // Hide the visible "Rest of Form" header inside the section (keep class for our logic)
+  // Hide visible "Rest of Form" header inside the section
   (function hideSectionHeader(){
     var se = sectionEl;
     if (!se) return;
@@ -230,6 +280,45 @@
     setControlValue(projIdIn,  projIdDisp,  bizIdVal!=null ? bizIdVal : "");
   }
 
+  // ---- Remember Project on Save & New, and clear Deliverable ----
+  var STORAGE_KEY = "iw_keep_project";
+  function rememberProjectForNext(){
+    try {
+      var text = getLookupText(lookupEl);
+      if (!text) return;
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({text:text, t:Date.now()}));
+    } catch(_){}
+  }
+  function applyRememberedProject(){
+    try {
+      var raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      var obj = JSON.parse(raw || "{}");
+      // expire after ~15 minutes
+      if (!obj || !obj.text || (Date.now() - (obj.t||0) > 15*60*1000)) {
+        sessionStorage.removeItem(STORAGE_KEY);
+        return;
+      }
+      // Set the lookup and clear Deliverable
+      setLookupByText(lookupEl, obj.text);
+      if (deliverableIn) setControlValue(deliverableIn, null, "");
+      // kick our normal update to refresh Status/ID
+      setTimeout(update, 50);
+      // one-time apply
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch(_){}
+  }
+
+  // delegate: catch any “Save & New” / “Add New” clicks before navigation
+  document.addEventListener("click", function(e){
+    var btn = e.target && e.target.closest && e.target.closest("button, a, [role='button'], .ms-Button");
+    if (!btn) return;
+    var txt = norm(((btn.innerText||btn.textContent||"")+" "+(btn.getAttribute("aria-label")||"")+" "+(btn.title||""))).toLowerCase();
+    if ((/\bsave\b/.test(txt) && /\bnew\b/.test(txt)) || /\badd\b.*\bnew\b/.test(txt)){
+      rememberProjectForNext();
+    }
+  }, true);
+
   var lastText="";
   function update(){
     var text = getLookupText(lookupEl);
@@ -251,6 +340,9 @@
   }
 
   // wire up listeners / observer / safety poll
+  // If we just came here from Save & New, apply stored choice first
+  applyRememberedProject();
+
   update();
   ["change","input","keyup"].forEach(function(ev){ lookupEl.addEventListener(ev, update, true); });
   lookupEl.addEventListener("blur", function(){ setTimeout(update,0); }, true);
