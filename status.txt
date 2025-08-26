@@ -8,13 +8,13 @@
   // Form labels (exact; trailing "*" is okay)
   var LABELS = {
     lookup: "Project",
-    deliverable: "Deliverable",         // NEW: we'll clear this on Save & New
+    deliverable: "Deliverable",
     status: "Status",
     projId: "Project ID",
     submittedBy: "Submitted By",
     submittedOn: "Submitted On",
-    deliverableNo: "Deliverable Number",// NEW: read-only
-    completed: "Completed"              // NEW: hard read-only
+    deliverableNo: "Deliverable Number",
+    completed: "Completed"
   };
 
   // ---------- DOM helpers ----------
