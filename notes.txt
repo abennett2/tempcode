@@ -1,1 +1,72 @@
-[Report Only] Refused to execute inline script because it violates the following Content Security Policy directive: "script-src 'unsafe-eval' https://contentstorage.osi.office.net https://swx.cdn.skype.com https://res.delve.office.com https://lpcres.delve.office.com https://widget.uservoice.com https://by2.uservoice.com https://www.bing.com/api/maps https://www.bing.com/rms https://fabriciss.azureedge.net https://ajax.aspnetcdn.com https://js.monitor.azure.com https://r4.res.office365.com https://public-cdn.sharepointonline.com https://teams.microsoft.com *.cdn.office.net *.fluidpreview.office.net *.onecdn.static.microsoft https://webshell.suite.office.com https://amcdn.msftauth.net https://res-1.cdn.office.net https://res-2-gcc.cdn.office.net https://gcc.loki.delve.office.com https://s1-excel-15.cdn.office.net https://s1-onenote-15.cdn.office.net https://s1-powerpoint-15.cdn.office.net https://s1-visio-15.cdn.office.net  https://s1-word-view-15.cdn.office.net 'self' alcdn.msauth.net https://res-1-gcc.cdn.office.net https://res-3.cdn.office.net https://shell.cdn.office.net https://res.cdn.office.net 'nonce-1b680f21-5620-4777-8216-329fe18e6391'". Either the 'unsafe-inline' keyword, a hash ('sha256-6+1fjMlGVmNbgtuws5zh9uzpb3IRSm4jOEhl3wDWiL8='), or a nonce ('nonce-...') is required to enable inline execution.
+Project Charter Modernization: Proposal & Plan of Action
+1. Executive Summary
+The following document outlines the plan to modernize the ePMO Project Charter application. The primary goal is to migrate all forms and processes from the classic SharePoint list experience into the Infowise Ultimate Forms platform. This will involve replacing existing Power Automate flows with Infowise Actions and implementing a more dynamic and user-friendly interface.
+________________________________________
+2. Global User Experience (UX) Rules
+These design principles will be applied globally to all forms created or updated during this project to ensure a consistent and intuitive user experience.
+•	Pre-Load Project based on current project wherever possible.
+•	Accordion Form Layout: All form sections (e.g., "Project Details," "IT Sizing") will be structured as collapsible accordions. This will allow users to focus on one section at a time, reducing clutter on complex forms.
+•	Dynamic Validation Indicators: Each accordion section will contain visual indicators at the top and bottom.
+o	These indicators will be visible and colored as long as there are incomplete required fields within that section.
+o	Once all required fields in the section are completed, the indicators will be hidden, providing a clear signal of completion to the user.
+________________________________________
+3. Phase 1 Implementation: Initiation
+The following tasks are prioritized for the Initiation phase of the project charter process.
+Discovery List (Priority #1)
+The Discovery form and its related components are the first priority for this modernization effort.
+•	Layout & Fields:
+o	The Discovery tab will be reordered to appear after the IT Sizing tab in the form flow.
+o	The "Systems Impacted" field will be removed.
+o	The "Notes" field (Multiple lines of text) will be added.
+•	Date Field Updates:
+o	Rename "Requirements Timeline" field to "CCB Planning Presentation Date" and ensure it is a Date field.
+o	Add new "Requirements Completion Date" field (Date type).
+o	Add new "Schedule Completion Date" field (Date type).
+•	Scoring Logic:
+o	All existing scoring fields will be removed from the Discovery list and moved to a new, dedicated list.
+Discovery Scoring List (New List)
+A new list will be created to manage project scoring, linking it directly to the Discovery process.
+•	List Creation:
+o	Create a new SharePoint list named "Discovery Scoring".
+o	Implement a lookup column to associate each scoring entry with a parent project.
+•	Fields & Data:
+o	The field "TriWest Strategic Goals" will be renamed to "Leadership Priority".
+o	An Infowise Action will be created to automatically pull in the "Leadership Priority" value from the main Intake form when a project is created.
+•	Form Integration & Permissions:
+o	The Discovery Scoring list will be displayed within the Discovery form using the Infowise Associated Items control.
+o	List permissions will be configured so that only ePMO group members can create or update scoring items.
+Other Initiation Phase Lists
+•	Project Intake:
+o	Remove the "IT Lead" field.
+o	Implement a rule to skip the Initiation phase for projects categorized as "Mods."
+•	Vendors:
+o	Implement form logic to hide all fields except the top four when a project is in the "Initiation" phase.
+•	Cross-Functional:
+o	Update the field to allow multiple selections.
+o	Add the following choices: Contingency, Cybersecurity, Data Analytics, Facility Security, Finance & Accounting, IT, Procurement.
+•	Stakeholder Benefits:
+o	Enable the "Save and Add Another" button for a better user experience.
+o	Ensure the "Stakeholder" field allows multiple selections.
+•	Deliverables:
+o	Enable the "Save and Add Another" button.
+o	Implement logic to hide the "Completed" field until the project enters the "Execution" phase.
+o	Configure the display to make deliverables numbered.
+•	IT Sizing:
+o	Remove approval requirements to make the tab available immediately.
+o	Remove "IT Lead" and "IT Business Analyst" fields.
+o	Update the "IT Systems Involved" choices (add/remove as specified in notes).
+o	Implement logic to display a "Primary Contact" name field for each system selected.
+•	Cost CCB:
+o	Verify and ensure permissions hide this section from Project Managers.
+•	C1 CCB:
+o	Rename specified date fields ("IT Sizing/Schedule Date," "C2 CCB Date," etc.).
+________________________________________
+4. Phase 2 Implementation: Planning
+•	Milestones List:
+o	Create this list
+o	Add a lookup field to the Deliverables list, allowing users to associate milestones with specific deliverables.
+________________________________________
+5. Open Items for Clarification
+The following items require clarification from the project owners before implementation can proceed.
+•	On the Cross-Functional and Stakeholder Benefits forms, what is the purpose of the "project field below 'Primary Representatives' on the new look version"?
+
