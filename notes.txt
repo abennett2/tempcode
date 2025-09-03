@@ -2,18 +2,41 @@
   "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/view-formatting.schema.json",
   "hideSelection": true,
   "hideColumnHeader": true,
-  "style": {
-    "max-height": "160px",
-    "overflow-y": "auto",
-    "border": "1px solid rgba(0,0,0,.1)",
-    "border-radius": "6px"
+  "groupProps": {
+    "headerFormatter": {
+      "elmType": "div",
+      "style": {
+        "display": "flex",
+        "align-items": "center",
+        "justify-content": "space-between",
+        "padding": "8px 12px",
+        "border": "1px solid rgba(0,0,0,.12)",
+        "border-radius": "6px",
+        "cursor": "pointer",
+        "font-weight": "600",
+        "background-color": "white"
+      },
+      "children": [
+        {
+          "elmType": "span",
+          "txtContent": "Select a project"
+        },
+        {
+          "elmType": "span",
+          "attributes": { "iconName": "=if(@group.expand, 'ChevronUp', 'ChevronDown')" },
+          "style": { "opacity": "0.7" }
+        }
+      ]
+    }
   },
   "rowFormatter": {
     "elmType": "div",
     "style": {
       "padding": "6px 10px",
+      "margin": "2px 0",
+      "border-radius": "4px",
       "cursor": "pointer",
-      "background-color": "=if(@isSelected, '#f3f2f1', 'white')"
+      "background-color": "=if(@isSelected, '#f3f2f1', 'transparent')"
     },
     "children": [
       {
@@ -21,6 +44,12 @@
         "style": { "font-weight": "500" },
         "txtContent": "[$Project_x0020_Name]"
       }
-    ]
+    ],
+    "customRowAction": { "action": "setSelection" }
+  },
+  "style": {
+    "max-height": "220px",
+    "overflow-y": "auto",
+    "border-radius": "6px"
   }
 }
