@@ -38,3 +38,9 @@
     "customRowAction": { "action": "setSelection" }
   }
 }
+...
+"children": [
+  { "elmType": "span", "txtContent": "[$PickerLabel]" },
+  { "elmType": "span", "attributes": { "iconName": "=if(@group.expand, 'ChevronUp', 'ChevronDown')" }, "style": { "opacity": "0.7" } }
+]
+...
