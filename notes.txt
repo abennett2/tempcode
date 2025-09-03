@@ -14,15 +14,12 @@
         "border-radius": "6px",
         "cursor": "pointer",
         "font-weight": "600",
-        "background-color": "white"
+        "background-color": "white",
+        "color": "#323130"
       },
       "children": [
         { "elmType": "span", "txtContent": "Select a project" },
-        {
-          "elmType": "span",
-          "attributes": { "iconName": "=if(@group.expand, 'ChevronUp', 'ChevronDown')" },
-          "style": { "opacity": "0.7" }
-        }
+        { "elmType": "span", "attributes": { "iconName": "=if(@group.expand, 'ChevronUp', 'ChevronDown')" }, "style": { "opacity": "0.7" } }
       ]
     }
   },
