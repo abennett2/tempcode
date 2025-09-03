@@ -17,10 +17,7 @@
         "background-color": "white"
       },
       "children": [
-        {
-          "elmType": "span",
-          "txtContent": "Select a project"
-        },
+        { "elmType": "span", "txtContent": "Select a project" },
         {
           "elmType": "span",
           "attributes": { "iconName": "=if(@group.expand, 'ChevronUp', 'ChevronDown')" },
@@ -39,17 +36,8 @@
       "background-color": "=if(@isSelected, '#f3f2f1', 'transparent')"
     },
     "children": [
-      {
-        "elmType": "span",
-        "style": { "font-weight": "500" },
-        "txtContent": "[$Project_x0020_Name]"
-      }
+      { "elmType": "span", "style": { "font-weight": "500" }, "txtContent": "[$Project_x0020_Name]" }
     ],
     "customRowAction": { "action": "setSelection" }
-  },
-  "style": {
-    "max-height": "220px",
-    "overflow-y": "auto",
-    "border-radius": "6px"
   }
 }
