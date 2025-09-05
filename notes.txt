@@ -14,5 +14,58 @@
   }
 }
 
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/view-formatting.schema.json",
+  "hideSelection": true,
+  "hideColumnHeader": true,
+  "groupProps": {
+    "headerFormatter": {
+      "elmType": "div",
+      "attributes": { "role": "button", "aria-label": "Select a project" },
+      "style": {
+        "display": "flex",
+        "align-items": "center",
+        "justify-content": "space-between",
+        "gap": "8px",
+        "padding": "8px 12px",
+        "border": "1px solid rgba(0,0,0,.12)",
+        "border-radius": "6px",
+        "cursor": "pointer",
+        "background-color": "white",
+        "color": "#323130",
+        "width": "100%",
+        "white-space": "nowrap",
+        "overflow": "hidden"
+      },
+      "children": [
+        {
+          "elmType": "span",
+          "style": { "display": "inline-block", "flex": "1 1 auto", "min-width": "0" },
+          "txtContent": "=@group.name"   // shows your PickerLabel value
+        },
+        {
+          "elmType": "span",
+          "attributes": { "iconName": "=if(@group.expand, 'ChevronUp', 'ChevronDown')" },
+          "style": { "flex": "0 0 auto", "opacity": "0.7" }
+        }
+      ]
+    }
+  },
+  "rowFormatter": {
+    "elmType": "div",
+    "style": {
+      "padding": "6px 10px",
+      "margin": "2px 0",
+      "border-radius": "4px",
+      "cursor": "pointer",
+      "background-color": "=if(@isSelected, '#f3f2f1', 'transparent')"
+    },
+    "children": [
+      { "elmType": "span", "style": { "font-weight": "500" }, "txtContent": "[$Project_x0020_Name]" }
+    ],
+    "customRowAction": { "action": "setSelection" }
+  }
+}
+
 
 
