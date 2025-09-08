@@ -6,3 +6,6 @@ Launch(
     EncodeUrl("https://<tenant>.sharepoint.com/sites/<site>/SitePages/Initiation.aspx")
   )
 )
+
+https://<tenant>.sharepoint.com/sites/<site>/Lists/Discovery/NewForm.aspx?Source=https://<tenant>.sharepoint.com/sites/<site>/Lists/Discovery/AllItems.aspx&LookupProject=T-5%20EXTERNAL%20J6%20Modernization
+
