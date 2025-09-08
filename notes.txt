@@ -1,7 +1,7 @@
 Launch(
   Concatenate(
-    "https://<tenant>.sharepoint.com/sites/<site>/Lists/Issues/NewForm.aspx",
-    "?pid=", Text(ddProject.Selected.ID),
+    "https://<tenant>.sharepoint.com/sites/<site>/Lists/Discovery/NewForm.aspx",
+    "?LookupProject=", ddProject.Selected.ID,
     "&Source=",
     EncodeUrl("https://<tenant>.sharepoint.com/sites/<site>/SitePages/Initiation.aspx")
   )
