@@ -9,3 +9,6 @@ Launch(
 
 https://<tenant>.sharepoint.com/sites/<site>/Lists/Discovery/NewForm.aspx?Source=https://<tenant>.sharepoint.com/sites/<site>/Lists/Discovery/AllItems.aspx&LookupProject=T-5%20EXTERNAL%20J6%20Modernization
 
+•	Scoring Details from Power Automate Flow (TW-Discovery Approval Process):
+o	Strategic Goals Filter Array
+	@and(equals(item()['RatingType'], 'Discovery'), equals(item()['Title'], 'TriWest Strategic Goals'), equals(item()['Selection'], variables('varStrategicGoals')))
