@@ -12,3 +12,5 @@ https://<tenant>.sharepoint.com/sites/<site>/Lists/Discovery/NewForm.aspx?Source
 •	Scoring Details from Power Automate Flow (TW-Discovery Approval Process):
 o	Strategic Goals Filter Array
 	@and(equals(item()['RatingType'], 'Discovery'), equals(item()['Title'], 'TriWest Strategic Goals'), equals(item()['Selection'], variables('varStrategicGoals')))
+
+<iframe width="100%" height="150px" src="https://apps.gov.powerapps.us/play/e/[MY_APP_ID]?tenantId=[MY_TENANT_ID]&sourcetime=1757337291480&pID=[ID]" style="border:solid;"></iframe>
