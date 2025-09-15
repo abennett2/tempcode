@@ -9,8 +9,20 @@ Launch(
 
 https://<tenant>.sharepoint.com/sites/<site>/Lists/Discovery/NewForm.aspx?Source=https://<tenant>.sharepoint.com/sites/<site>/Lists/Discovery/AllItems.aspx&LookupProject=T-5%20EXTERNAL%20J6%20Modernization
 
-•	Scoring Details from Power Automate Flow (TW-Discovery Approval Process):
-o	Strategic Goals Filter Array
-	@and(equals(item()['RatingType'], 'Discovery'), equals(item()['Title'], 'TriWest Strategic Goals'), equals(item()['Selection'], variables('varStrategicGoals')))
+Growth Scoring from flow:
+Action: Scope - Growth
+Inner Action: Filter array 6
+	From: @outputs('Get_items_-_Charter_Ratings')?['body/value']
+	Value: @and(equals(item()['RatingType'], 'Discovery'), equals(item()['Title'], 'Growth'), equals(item()['Selection'], variables('varGrowth')))
+
+Inner Action Apply to each 13
+	Select an output from previous steps: @{body('Filter_array_6')}
+	Inner Action: Set variable 6
+		Name: varGrowth
+		Value: @{items('Apply_to_each_13')?['Value']}
+		
+Inner Action: Increment varPrioritizationScore with Growth
+	Name: varPrioritizationScore
+	Value: @{float(variables('varGrowth'))}
 
 <iframe width="100%" height="150px" src="https://apps.gov.powerapps.us/play/e/[MY_APP_ID]?tenantId=[MY_TENANT_ID]&sourcetime=1757337291480&pID=[ID]" style="border:solid;"></iframe>
