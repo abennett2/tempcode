@@ -26,3 +26,13 @@ Inner Action: Increment varPrioritizationScore with Growth
 	Value: @{float(variables('varGrowth'))}
 
 <iframe width="100%" height="150px" src="https://apps.gov.powerapps.us/play/e/[MY_APP_ID]?tenantId=[MY_TENANT_ID]&sourcetime=1757337291480&pID=[ID]" style="border:solid;"></iframe>
+
+= $ToNumber(
+    GetValue(
+      "Charters Rating",
+      "LookupKey",
+      $Concat("Discovery","|","Growth","|",[Growth]),
+      "Value"
+    )
+  )
+
