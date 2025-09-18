@@ -30,7 +30,7 @@ Inner Action: Increment varPrioritizationScore with Growth
 // Use the InfoWise framework to run code when the form is ready
 fd.spRendered(function() {
 
-    // This function will perform the lookup
+    // Perform the lookup
     function getRating(sourceFieldName, keyPart, targetFieldName) {
         // Get the value from the source field on the form
         var fieldValue = fd.field(sourceFieldName).value();
@@ -76,7 +76,7 @@ fd.spRendered(function() {
         });
     }
 
-    // --- SETUP FOR YOUR SCORE FIELDS ---
+    // --- SETUP SCORE FIELDS ---
 
     // 1. For Compliance / Quality
     // When the 'Compliance / Quality' field changes, run the lookup
