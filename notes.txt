@@ -1,81 +1,86 @@
 console.log("Script execution started.");
 
 function runFinalScript() {
-    // Check if the InfoWise framework (fd) is loaded
     if (typeof fd !== 'undefined' && fd.spRendered) {
         console.log("InfoWise fd object is ready.");
 
-        // Now, wait for the form itself and all its fields to be fully rendered
         fd.spRendered(function() {
             console.log("Form is rendered. Attaching field logic...");
 
-            // This function performs the lookup for a single score
             function getRating(sourceFieldName, keyPart, targetFieldName) {
-                var fieldValue = fd.field(sourceFieldName).value();
+                var sourceField = fd.field(sourceFieldName);
+                if (!sourceField) {
+                    console.error("Source field '" + sourceFieldName + "' not found on the form.");
+                    return;
+                }
+                var fieldValue = sourceField.value();
                 if (!fieldValue) {
                     fd.field(targetFieldName).value(0);
                     return;
                 }
-                var lookupKey = "Discovery|" + keyPart + "|" + fieldValue;
-                var apiUrl = _spPageContextInfo.webAbsoluteUrl + "/_api/web/lists/getbytitle('Charter Ratings')/items?$filter=LookupKey eq '" + lookupKey + "'";
 
-                $.ajax({
-                    url: apiUrl,
-                    method: "GET",
-                    headers: { "Accept": "application/json; odata=verbose" },
-                    success: function (data) {
-                        var score = 0;
-                        if (data.d.results.length > 0) {
-                            var lookedUpValue = data.d.results[0].Value;
-                            var parsedValue = parseFloat(String(lookedUpValue).trim());
-                            if (!isNaN(parsedValue)) {
-                                score = parsedValue;
-                            }
-                        }
-                        fd.field(targetFieldName).value(score);
-                    },
-                    error: function (error) {
-                        console.error("API Error for " + targetFieldName + ": ", error);
-                        fd.field(targetFieldName).value(0);
+                var lookupKey = "Discovery|" + keyPart + "|" + fieldValue;
+                var apiUrl = _spPageContextInfo.webAbsoluteUrl + "/_api/web/lists/getbytitle('Charter Ratings')/items?$filter=LookupKey eq '" + encodeURIComponent(lookupKey) + "'";
+                
+                // Using modern 'fetch' instead of jQuery 'ajax'
+                fetch(apiUrl, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json; odata=verbose' }
+                })
+                .then(function(response) {
+                    if (!response.ok) {
+                        // If the server response is an error (like 404 or 500), throw an error
+                        throw new Error('Network response was not ok for ' + targetFieldName);
                     }
+                    return response.json();
+                })
+                .then(function(data) {
+                    var score = 0;
+                    if (data.d.results && data.d.results.length > 0) {
+                        var lookedUpValue = data.d.results[0].Value;
+                        var parsedValue = parseFloat(String(lookedUpValue).trim());
+                        if (!isNaN(parsedValue)) {
+                            score = parsedValue;
+                        }
+                    }
+                    fd.field(targetFieldName).value(score);
+                })
+                .catch(function(error) {
+                    console.error("API Fetch Error for " + targetFieldName + ": ", error);
+                    fd.field(targetFieldName).value(0);
                 });
             }
 
-            // This function runs all the rating calculations at once
             function calculateAllRatings() {
                 console.log("Running all rating calculations...");
-                getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
+                getRating('ComplianceQuality', 'Compliance / Quality', 'CompQualScoreCalc');
                 getRating('Performance', 'Performance', 'PerfScoreCalc');
-                getRating('Contract Mod', 'Contract Mod', 'ContractModScoreCalc');
-                getRating('Growth (Organic and New Business):', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
-                getRating('Customer Experience', 'Customer Experience', 'CustExpScoreCalc');
-                getRating('CBA Net Cost', 'CBA Net Cost', 'CBANetCostScoreCalc');
+                getRating('ContractMod', 'Contract Mod', 'ContractModScoreCalc');
+                getRating('Growth', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
+                getRating('CustomerExperience', 'Customer Experience', 'CustExpScoreCalc');
+                getRating('CBANetCost', 'CBA Net Cost', 'CBANetCostScoreCalc');
             }
 
             // --- SCRIPT SETUP ---
-            var projectLookupField = 'LookupProject'; 
+            var projectLookupField = 'LookupProject'; // Your verified internal name
 
-            // When the project lookup field changes...
             fd.field(projectLookupField).$on('change', function() {
                 console.log("Project Lookup field changed. Waiting to calculate...");
-                // Wait a moment for InfoWise to populate the other fields, then run all calculations.
-                setTimeout(calculateAllRatings, 500);
+                setTimeout(calculateAllRatings, 750);
             });
 
-            // Run once when the form loads, in case it's an existing item.
-            console.log("Running initial calculations on form load...");
-            setTimeout(calculateAllRatings, 500);
+            if (fd.field(projectLookupField).value) {
+                console.log("Running initial calculations on form load for existing item...");
+                setTimeout(calculateAllRatings, 750);
+            } else {
+                console.log("This is a new item. Waiting for project selection.");
+            }
         });
 
     } else {
-        // If 'fd' is not ready, wait 100 milliseconds and try again
         setTimeout(runFinalScript, 100);
     }
 }
 
 // Start the entire process
 runFinalScript();
-
-
-Script execution started.
-sp-list-form-application-assembly_en-us_ecf8d1dfba731c0179dcb8a70b792fcb.js:176   GET https://triwesthcac.sharepoint.com/sites/ePMO/Charters_dev/_api/web/lists(guid'ade206d0-3fcf-4972-aab8-51041f05bbe4')/items?$select=ProjectManager&$filter=Title%20eq%20%27BH%20Provider%20Data%27 400 (Bad Request)
