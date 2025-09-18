@@ -47,7 +47,7 @@ function runFinalScript() {
                 getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
                 getRating('Performance', 'Performance', 'PerfScoreCalc');
                 getRating('Contract Mod', 'Contract Mod', 'ContractModScoreCalc');
-                getRating('Growth', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
+                getRating('Growth (Organic and New Business):', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
                 getRating('Customer Experience', 'Customer Experience', 'CustExpScoreCalc');
                 getRating('CBA Net Cost', 'CBA Net Cost', 'CBANetCostScoreCalc');
             }
