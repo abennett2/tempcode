@@ -85,89 +85,20 @@ function runWhenFDReady() {
 // Start the process
 runWhenFDReady();
 
-// Wait for the 'fd' object to be ready before running.
-function runWhenFDReady() {
-    if (typeof fd !== 'undefined' && fd.spRendered) {
+console.log("CSP Test: Script execution started.");
 
-        // Use the InfoWise framework to run code when the form is ready
-        fd.spRendered(function() {
-
-            // This function will perform the lookup
-            function getRating(sourceFieldName, keyPart, targetFieldName) {
-                var fieldValue = fd.field(sourceFieldName).value();
-                if (!fieldValue) {
-                    fd.field(targetFieldName).value(0);
-                    return;
-                }
-                var lookupKey = "Discovery|" + keyPart + "|" + fieldValue;
-                var apiUrl = _spPageContextInfo.webAbsoluteUrl + "/_api/web/lists/getbytitle('Charter Ratings')/items?$filter=LookupKey eq '" + lookupKey + "'";
-
-                $.ajax({
-                    url: apiUrl,
-                    method: "GET",
-                    headers: { "Accept": "application/json; odata=verbose" },
-                    success: function (data) {
-                        var score = 0;
-                        if (data.d.results.length > 0) {
-                            var lookedUpValue = data.d.results[0].Value;
-                            var parsedValue = parseFloat(String(lookedUpValue).trim());
-                            if (!isNaN(parsedValue)) {
-                                score = parsedValue;
-                            }
-                        }
-                        fd.field(targetFieldName).value(score);
-                    },
-                    error: function (error) {
-                        console.log("Error looking up rating: " + JSON.stringify(error));
-                        fd.field(targetFieldName).value(0);
-                    }
-                });
-            }
-
-            // --- SETUP SCORE FIELDS ---
-
-            // 1. For Compliance / Quality
-            fd.field('Compliance / Quality').$on('change', function() {
-                getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
-            });
-            getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
-
-            // 2. For Performance
-            fd.field('Performance').$on('change', function() {
-                getRating('Performance', 'Performance', 'PerfScoreCalc');
-            });
-            getRating('Performance', 'Performance', 'PerfScoreCalc');
-            
-            // 3. For Contract Mod
-            fd.field('Contract Mod').$on('change', function() {
-                getRating('Contract Mod', 'Contract Mod', 'ContractModScoreCalc');
-            });
-            getRating('Contract Mod', 'Contract Mod', 'ContractModScoreCalc');
-
-            // 4. For Growth
-            fd.field('Growth').$on('change', function() {
-                getRating('Growth', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
-            });
-            getRating('Growth', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
-
-			// 5. For CBA Net Cost
-            fd.field('CBA Net Cost').$on('change', function() {
-                getRating('CBA Net Cost', 'CBA Net Cost', 'CBANetCostScoreCalc');
-            });
-            getRating('CBA Net Cost', 'CBA Net Cost', 'CBANetCostScoreCalc');
-
-            // 6. For Customer Experience
-            fd.field('Customer Experience').$on('change', function() {
-                getRating('Customer Experience', 'Customer Experience', 'CustExpScoreCalc');
-            });
-            getRating('Customer Experience', 'Customer Experience', 'CustExpScoreCalc');
+function testFD() {
+    if (typeof fd !== 'undefined') {
+        console.log("CSP Test: InfoWise fd object is ready.");
+        // If fd is ready, attach an alert to a field change
+        fd.field('Project Lookup').$on('change', function(){
+            alert("Project Lookup CHANGED! The script is working.");
         });
-
     } else {
-        // If 'fd' is not ready, wait 100 milliseconds and try again
-        setTimeout(runWhenFDReady, 100);
+        // If 'fd' is not ready, wait and try again
+        setTimeout(testFD, 100);
     }
 }
 
-// Start the process
-runWhenFDReady();
+// Start the test
+testFD();
