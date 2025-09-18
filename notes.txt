@@ -34,4 +34,4 @@ $If(IsNull(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compl
 
 $ToNumber(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value"))
 
-$If(IsNull($GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality])|"Value")) | $ToNumber(0) | $ToNumber($Trim($GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality])|"Value"))))
+$GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|","Compliance / Quality"|"[Compliance / Quality])|"Value")
