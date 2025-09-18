@@ -1,63 +1,49 @@
-// This function waits for the 'fd' object to be ready before running our main code.
-function runWhenFDReady() {
+console.log("Script execution started.");
+
+function runFinalScript() {
+    // Check if the InfoWise framework (fd) is loaded
     if (typeof fd !== 'undefined' && fd.spRendered) {
-        // --- All of our original code goes here ---
+        console.log("InfoWise fd object is ready.");
 
+        // Now, wait for the form itself and all its fields to be fully rendered
         fd.spRendered(function() {
-            console.log("InfoWise Form Ready. Setting up lookups...");
+            console.log("Form is rendered. Attaching field logic...");
 
-            // This function will perform the lookup
+            // This function performs the lookup for a single score
             function getRating(sourceFieldName, keyPart, targetFieldName) {
-                console.log("-----\nRunning getRating for: " + targetFieldName);
-                
                 var fieldValue = fd.field(sourceFieldName).value();
-                // --- DEBUG: Print the value of the source field ---
-                console.log("Source Field '" + sourceFieldName + "' Value: ", fieldValue);
-
                 if (!fieldValue) {
-                    console.log("Source field is empty. Setting target to 0.");
                     fd.field(targetFieldName).value(0);
                     return;
                 }
-
                 var lookupKey = "Discovery|" + keyPart + "|" + fieldValue;
-                // --- DEBUG: Print the key we are looking for ---
-                console.log("Constructed Lookup Key: " + lookupKey);
-
                 var apiUrl = _spPageContextInfo.webAbsoluteUrl + "/_api/web/lists/getbytitle('Charter Ratings')/items?$filter=LookupKey eq '" + lookupKey + "'";
-                // --- DEBUG: Print the exact URL we are querying ---
-                console.log("API URL: " + apiUrl);
 
                 $.ajax({
                     url: apiUrl,
                     method: "GET",
                     headers: { "Accept": "application/json; odata=verbose" },
                     success: function (data) {
-                        console.log("API call successful for " + targetFieldName, data.d.results);
                         var score = 0;
                         if (data.d.results.length > 0) {
                             var lookedUpValue = data.d.results[0].Value;
-                            console.log("Found value: " + lookedUpValue);
                             var parsedValue = parseFloat(String(lookedUpValue).trim());
                             if (!isNaN(parsedValue)) {
                                 score = parsedValue;
                             }
-                        } else {
-                            console.log("No items found for this key.");
                         }
-                        console.log("Setting '" + targetFieldName + "' to: " + score);
                         fd.field(targetFieldName).value(score);
                     },
                     error: function (error) {
-                        console.error("API Error for " + targetFieldName + ": " + JSON.stringify(error));
+                        console.error("API Error for " + targetFieldName + ": ", error);
                         fd.field(targetFieldName).value(0);
                     }
                 });
             }
 
-            // This function runs all the rating calculations
+            // This function runs all the rating calculations at once
             function calculateAllRatings() {
-                console.log("calculateAllRatings triggered.");
+                console.log("Running all rating calculations...");
                 getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
                 getRating('Performance', 'Performance', 'PerfScoreCalc');
                 getRating('Contract Mod', 'Contract Mod', 'ContractModScoreCalc');
@@ -66,39 +52,26 @@ function runWhenFDReady() {
                 getRating('CBA Net Cost', 'CBA Net Cost', 'CBANetCostScoreCalc');
             }
 
-            // --- SETUP FOR YOUR SCORE FIELDS ---
-            var projectLookupField = 'Project Lookup'; 
+            // --- SCRIPT SETUP ---
+            var projectLookupField = 'LookupProject'; 
 
+            // When the project lookup field changes...
             fd.field(projectLookupField).$on('change', function() {
-                console.log("Project Lookup field changed.");
+                console.log("Project Lookup field changed. Waiting to calculate...");
+                // Wait a moment for InfoWise to populate the other fields, then run all calculations.
                 setTimeout(calculateAllRatings, 500);
             });
 
+            // Run once when the form loads, in case it's an existing item.
+            console.log("Running initial calculations on form load...");
             setTimeout(calculateAllRatings, 500);
         });
 
     } else {
-        setTimeout(runWhenFDReady, 100);
+        // If 'fd' is not ready, wait 100 milliseconds and try again
+        setTimeout(runFinalScript, 100);
     }
 }
 
-// Start the process
-runWhenFDReady();
-
-console.log("CSP Test: Script execution started.");
-
-function testFD() {
-    if (typeof fd !== 'undefined') {
-        console.log("CSP Test: InfoWise fd object is ready.");
-        // If fd is ready, attach an alert to a field change
-        fd.field('Project Lookup').$on('change', function(){
-            alert("Project Lookup CHANGED! The script is working.");
-        });
-    } else {
-        // If 'fd' is not ready, wait and try again
-        setTimeout(testFD, 100);
-    }
-}
-
-// Start the test
-testFD();
+// Start the entire process
+runFinalScript();
