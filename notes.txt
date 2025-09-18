@@ -27,65 +27,89 @@ Inner Action: Increment varPrioritizationScore with Growth
 
 <iframe width="100%" height="150px" src="https://apps.gov.powerapps.us/play/e/[MY_APP_ID]?tenantId=[MY_TENANT_ID]&sourcetime=1757337291480&pID=[ID]" style="border:solid;"></iframe>
 
-// Use the InfoWise framework to run code when the form is ready
-fd.spRendered(function() {
+// Wait for the 'fd' object to be ready before running.
+function runWhenFDReady() {
+    if (typeof fd !== 'undefined' && fd.spRendered) {
 
-    // Perform the lookup
-    function getRating(sourceFieldName, keyPart, targetFieldName) {
-        // Get the value from the source field on the form
-        var fieldValue = fd.field(sourceFieldName).value();
+        // Use the InfoWise framework to run code when the form is ready
+        fd.spRendered(function() {
 
-        // If the source field is empty, set target to 0 and stop
-        if (!fieldValue) {
-            fd.field(targetFieldName).value(0);
-            return;
-        }
-
-        // Build the lookup key string
-        var lookupKey = "Discovery|" + keyPart + "|" + fieldValue;
-
-        // Use SharePoint's REST API to query the 'Charter Ratings' list
-        // Note: The list name must be exact.
-        var apiUrl = _spPageContextInfo.webAbsoluteUrl + "/_api/web/lists/getbytitle('Charter Ratings')/items?$filter=LookupKey eq '" + lookupKey + "'";
-
-        $.ajax({
-            url: apiUrl,
-            method: "GET",
-            headers: { "Accept": "application/json; odata=verbose" },
-            success: function (data) {
-                var score = 0; // Default to 0
-                // Check if any results were returned
-                if (data.d.results.length > 0) {
-                    // Get the 'Value' from the first result
-                    var lookedUpValue = data.d.results[0].Value;
-                    // Trim spaces and convert to a number
-                    var parsedValue = parseFloat(String(lookedUpValue).trim());
-                    // If the result is a valid number, use it. Otherwise, score remains 0.
-                    if (!isNaN(parsedValue)) {
-                        score = parsedValue;
-                    }
+            // This function will perform the lookup
+            function getRating(sourceFieldName, keyPart, targetFieldName) {
+                var fieldValue = fd.field(sourceFieldName).value();
+                if (!fieldValue) {
+                    fd.field(targetFieldName).value(0);
+                    return;
                 }
-                // Set the value of our target score field
-                fd.field(targetFieldName).value(score);
-            },
-            error: function (error) {
-                console.log("Error looking up rating: " + JSON.stringify(error));
-                // If there's an error, set the score to 0
-                fd.field(targetFieldName).value(0);
+                var lookupKey = "Discovery|" + keyPart + "|" + fieldValue;
+                var apiUrl = _spPageContextInfo.webAbsoluteUrl + "/_api/web/lists/getbytitle('Charter Ratings')/items?$filter=LookupKey eq '" + lookupKey + "'";
+
+                $.ajax({
+                    url: apiUrl,
+                    method: "GET",
+                    headers: { "Accept": "application/json; odata=verbose" },
+                    success: function (data) {
+                        var score = 0;
+                        if (data.d.results.length > 0) {
+                            var lookedUpValue = data.d.results[0].Value;
+                            var parsedValue = parseFloat(String(lookedUpValue).trim());
+                            if (!isNaN(parsedValue)) {
+                                score = parsedValue;
+                            }
+                        }
+                        fd.field(targetFieldName).value(score);
+                    },
+                    error: function (error) {
+                        console.log("Error looking up rating: " + JSON.stringify(error));
+                        fd.field(targetFieldName).value(0);
+                    }
+                });
             }
+
+            // --- SETUP SCORE FIELDS ---
+
+            // 1. For Compliance / Quality
+            fd.field('Compliance / Quality').$on('change', function() {
+                getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
+            });
+            getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
+
+            // 2. For Performance
+            fd.field('Performance').$on('change', function() {
+                getRating('Performance', 'Performance', 'PerfScoreCalc');
+            });
+            getRating('Performance', 'Performance', 'PerfScoreCalc');
+            
+            // 3. For Contract Mod
+            fd.field('Contract Mod').$on('change', function() {
+                getRating('Contract Mod', 'Contract Mod', 'ContractModScoreCalc');
+            });
+            getRating('Contract Mod', 'Contract Mod', 'ContractModScoreCalc');
+
+            // 4. For Growth
+            fd.field('Growth').$on('change', function() {
+                getRating('Growth', 'Growth', 'GrowthScoreCalc');
+            });
+            getRating('Growth', 'Growth', 'GrowthScoreCalc');
+
+			// 5. For CBA Net Cost
+            fd.field('CBA Net Cost').$on('change', function() {
+                getRating('CBA Net Cost', 'CBA Net Cost', 'CBANetCostScoreCalc');
+            });
+            getRating('CBA Net Cost', 'CBA Net Cost', 'CBANetCostScoreCalc');
+
+            // 6. For Customer Experience
+            fd.field('Customer Experience').$on('change', function() {
+                getRating('Customer Experience', 'Customer Experience', 'CustExpScoreCalc');
+            });
+            getRating('Customer Experience', 'Customer Experience', 'CustExpScoreCalc');
         });
+
+    } else {
+        // If 'fd' is not ready, wait 100 milliseconds and try again
+        setTimeout(runWhenFDReady, 100);
     }
+}
 
-    // --- SETUP SCORE FIELDS ---
-
-    // 1. For Compliance / Quality
-    // When the 'Compliance / Quality' field changes, run the lookup
-    fd.field('Compliance / Quality').$on('change', function() {
-        // Look in the 'Compliance / Quality' field, use "Compliance / Quality" for the key, and update 'CompQualScoreCalc'
-        getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
-    });
-
-    // Run it once when the form loads too
-    getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
-
-});
+// Start the process
+runWhenFDReady();
