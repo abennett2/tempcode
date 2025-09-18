@@ -29,4 +29,5 @@ Inner Action: Increment varPrioritizationScore with Growth
 
 $ToNumber(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value"))
 
-="Discovery|" & [Title] & "|" & [Selection]
+iif(IsNull(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value")), 0, $ToNumber($Trim(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value"))))
+
