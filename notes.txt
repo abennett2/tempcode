@@ -88,9 +88,9 @@ function runWhenFDReady() {
 
             // 4. For Growth
             fd.field('Growth').$on('change', function() {
-                getRating('Growth', 'Growth', 'GrowthScoreCalc');
+                getRating('Growth', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
             });
-            getRating('Growth', 'Growth', 'GrowthScoreCalc');
+            getRating('Growth', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
 
 			// 5. For CBA Net Cost
             fd.field('CBA Net Cost').$on('change', function() {
