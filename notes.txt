@@ -75,3 +75,7 @@ function runFinalScript() {
 
 // Start the entire process
 runFinalScript();
+
+
+Script execution started.
+sp-list-form-application-assembly_en-us_ecf8d1dfba731c0179dcb8a70b792fcb.js:176   GET https://triwesthcac.sharepoint.com/sites/ePMO/Charters_dev/_api/web/lists(guid'ade206d0-3fcf-4972-aab8-51041f05bbe4')/items?$select=ProjectManager&$filter=Title%20eq%20%27BH%20Provider%20Data%27 400 (Bad Request)
