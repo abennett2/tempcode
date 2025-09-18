@@ -27,11 +27,65 @@ Inner Action: Increment varPrioritizationScore with Growth
 
 <iframe width="100%" height="150px" src="https://apps.gov.powerapps.us/play/e/[MY_APP_ID]?tenantId=[MY_TENANT_ID]&sourcetime=1757337291480&pID=[ID]" style="border:solid;"></iframe>
 
-$ToNumber(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value"))
-GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value")
-$If(IsNull(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value")) | $ToNumber(0) | $ToNumber($Trim(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value"))))
-$If(IsNull(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value")), $ToNumber(0), $ToNumber($Trim(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value"))))
+// Use the InfoWise framework to run code when the form is ready
+fd.spRendered(function() {
 
-$ToNumber(GetValue("Charter Ratings","LookupKey",$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality]),"Value"))
+    // This function will perform the lookup
+    function getRating(sourceFieldName, keyPart, targetFieldName) {
+        // Get the value from the source field on the form
+        var fieldValue = fd.field(sourceFieldName).value();
 
-$GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|","Compliance / Quality"|"[Compliance / Quality])|"Value")
+        // If the source field is empty, set target to 0 and stop
+        if (!fieldValue) {
+            fd.field(targetFieldName).value(0);
+            return;
+        }
+
+        // Build the lookup key string
+        var lookupKey = "Discovery|" + keyPart + "|" + fieldValue;
+
+        // Use SharePoint's REST API to query the 'Charter Ratings' list
+        // Note: The list name must be exact.
+        var apiUrl = _spPageContextInfo.webAbsoluteUrl + "/_api/web/lists/getbytitle('Charter Ratings')/items?$filter=LookupKey eq '" + lookupKey + "'";
+
+        $.ajax({
+            url: apiUrl,
+            method: "GET",
+            headers: { "Accept": "application/json; odata=verbose" },
+            success: function (data) {
+                var score = 0; // Default to 0
+                // Check if any results were returned
+                if (data.d.results.length > 0) {
+                    // Get the 'Value' from the first result
+                    var lookedUpValue = data.d.results[0].Value;
+                    // Trim spaces and convert to a number
+                    var parsedValue = parseFloat(String(lookedUpValue).trim());
+                    // If the result is a valid number, use it. Otherwise, score remains 0.
+                    if (!isNaN(parsedValue)) {
+                        score = parsedValue;
+                    }
+                }
+                // Set the value of our target score field
+                fd.field(targetFieldName).value(score);
+            },
+            error: function (error) {
+                console.log("Error looking up rating: " + JSON.stringify(error));
+                // If there's an error, set the score to 0
+                fd.field(targetFieldName).value(0);
+            }
+        });
+    }
+
+    // --- SETUP FOR YOUR SCORE FIELDS ---
+
+    // 1. For Compliance / Quality
+    // When the 'Compliance / Quality' field changes, run the lookup
+    fd.field('Compliance / Quality').$on('change', function() {
+        // Look in the 'Compliance / Quality' field, use "Compliance / Quality" for the key, and update 'CompQualScoreCalc'
+        getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
+    });
+
+    // Run it once when the form loads too
+    getRating('Compliance / Quality', 'Compliance / Quality', 'CompQualScoreCalc');
+
+});
