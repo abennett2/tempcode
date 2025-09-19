@@ -10,7 +10,7 @@ $If(IsNull($GetValue(|"Charter Ratings"|"LookupKey='""Discovery-Compliance / Qua
 $GetValue(|Charter Ratings|LookupKey=Discovery-Growth-[Growth (Organic and New Business):]|Value)
 
 
-$GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|Title=Discovery and Selection=Growth)|Value)
+$GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|Title=Growth and Selection=[Growth])|Value)
 $GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|"Title='Growth' and Selection='"[Growth]"'")|Value)
 
 GET https://triwesthcac.sharepoint.com/sites/ePMO/Charters_dev/_api/web/lists/getbytitle(@listName)?@listName=%27%22Charter%20Ratings%22%27&$select=Id,Title,AllowContentTypes,BaseTemplate,BaseType,EnableVersioning 404 (Not Found)
