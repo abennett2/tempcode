@@ -2,3 +2,6 @@ $ToNumber($Trim($GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|",
 $ToNumber($Trim($GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|","Performance","|",[Performance])|"Value")))
 
 $GetValue("Charter Ratings"|"LookupKey"|"Discovery|Compliance / Quality|"[Compliance / Quality]|"Value")
+
+
+$GetValue(|"Charter Ratings"|"LookupKey='""Discovery|Compliance / Quality|"[Compliance / Quality]"'"|"Value")
