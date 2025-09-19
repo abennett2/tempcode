@@ -9,7 +9,7 @@ $If(IsNull($GetValue(|"Charter Ratings"|"LookupKey='""Discovery-Compliance / Qua
 
 $GetValue(|Charter Ratings|LookupKey=Discovery-Growth-[Growth (Organic and New Business):]|Value)
 
-
+$GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|LookupKey="$([PerfKey])")|Value)
 $GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|Title=Performance and LookupKey=[Performance])|Value)
 $GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|LookupKeyCalc=[PerfKey])|Value)
 
