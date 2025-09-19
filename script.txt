@@ -11,6 +11,6 @@ $GetValue(|Charter Ratings|LookupKey=Discovery-Growth-[Growth (Organic and New B
 
 
 $GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|Title=Performance and Selection=[Performance])|Value)
-$GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|"Title='Performance' and Selection='"[Performance]"'")|Value)
+$GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|"Title='Performance' and Selection='Cross-Functional (organizational impact)'")|Value)
 
 GET https://triwesthcac.sharepoint.com/sites/ePMO/Charters_dev/_api/web/lists/getbytitle(@listName)?@listName=%27%22Charter%20Ratings%22%27&$select=Id,Title,AllowContentTypes,BaseTemplate,BaseType,EnableVersioning 404 (Not Found)
