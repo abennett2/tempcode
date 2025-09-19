@@ -3,5 +3,6 @@ $ToNumber($Trim($GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|",
 
 $GetValue("Charter Ratings"|"LookupKey"|"Discovery|Compliance / Quality|"[Compliance / Quality]|"Value")
 
-
 $GetValue(|"Charter Ratings"|"LookupKey='""Discovery|Compliance / Quality|"[Compliance / Quality]"'"|"Value")
+
+$If(IsNull($GetValue(|"Charter Ratings"|"LookupKey='""Discovery-Compliance / Quality-"[Compliance / Quality]"'"|"Value")) | "0" | $GetValue(|"Charter Ratings"|"LookupKey='""Discovery-Compliance / Quality-"[Compliance / Quality]"'"|"Value"))
