@@ -14,3 +14,11 @@ $GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|Title=Performance and Lo
 $GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|LookupKeyCalc=[PerfKey])|Value)
 
 GET https://triwesthcac.sharepoint.com/sites/ePMO/Charters_dev/_api/web/lists/getbytitle(@listName)?@listName=%27%22Charter%20Ratings%22%27&$select=Id,Title,AllowContentTypes,BaseTemplate,BaseType,EnableVersioning 404 (Not Found)
+
+
+$GetValue(|Charter Ratings|
+  $Concat(
+    "LookupKey='", $Replace($Trim([PerfKey])|"'| "''"),
+    "' AND Title='Performance' AND Selection='Cross-Functional (organizational impact)'"
+  )
+|Value)
