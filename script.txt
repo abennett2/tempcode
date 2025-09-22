@@ -23,6 +23,11 @@ $GetValue(|Charter Ratings|
   )
 |Value)
 
+LookupKey=Discovery-Growth-No Strategic Alignment
+Title=Growth
+Selection=No Strategic Alignment
+Value=0
+
 $GetValue(|Charter Ratings|$Concat("LookupKeyCalc eq '",$Replace($Trim([GrowthKey])|"'| "''"),"'")|Value)
 $GetValue(|Charter Ratings|$Concat("LookupKeyCalc='",$Replace($Trim([GrowthKey])|"'| "''"),"'")|Value)
 $GetValue(|Charter Ratings|ID=11|Value)
