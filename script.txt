@@ -34,5 +34,6 @@ $GetValue(|Charter Ratings|ID=11|Value)
 $GetValue(|Charter Ratings|$Concat("LookupKey='", $Trim([GrowthKey]), "'")|Value)
 $GetValue(|Charter Ratings|$Concat(LookupKey=', $Trim([GrowthKey]),')|Value)
 
-$Concat("FILTER=> LookupKeyCalc='", $Replace($Trim([GrowthKey])|"'| "''"), "'")
+$Concat("FILTER=> LookupKeyCalc='", $Replace($Trim([GrowthKey])|"'| "''"), "'") =
+$Concat("FILTER=> LookupKeyCalc='", Discovery-Growth-No Strategic Alignment, "'")
 $FindItem(Charter Ratings|$Concat("LookupKeyCalc='", $Replace($Trim([GrowthKey])|"'| "''"), "'"))
