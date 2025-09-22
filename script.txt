@@ -22,3 +22,7 @@ $GetValue(|Charter Ratings|
     "' AND Title='Performance' AND Selection='Cross-Functional (organizational impact)'"
   )
 |Value)
+
+$GetValue(|Charter Ratings|ID=11|Value)
+$GetValue(|Charter Ratings|$Concat("LookupKey='", $Trim([GrowthKey]), "'")|Value)
+$GetValue(|Charter Ratings|$Concat(LookupKey=', $Trim([GrowthKey]),')|Value)
