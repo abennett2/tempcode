@@ -44,3 +44,11 @@ $($FindItem(Charter Ratings|$($Concat("LookupKeyCalc='",$Replace($Trim([GrowthKe
 
 $GetValue(|Charter Ratings|$Concat("Title='Growth' AND Selection='", [Growth (Organic and New Business):], "')|Value)
 $GetValue(|Charter Ratings|$Concat("Title='Growth' AND Selection='", [Growth (Organic and New Business):], "')|ID)
+
+
+=$Concat("Title='Growth AND Category='Discovery' AND Selection='", $Replace($Trim([Growth (Organic and New Business):])|"'| "''"), "'")
+=$Concat("Title='Growth' AND Category='Discovery' AND Selection='", No Strategic Alignment, "'")
+$Concat("Title='Growth AND Category='Discovery' AND Selection='", $Replace($Trim([Growth (Organic and New Business):])|"'| "''"), "'")
+$Concat("Title='Growth' AND Category='Discovery' AND Selection='", No Strategic Alignment, "'")
+Title='Growth' AND Category='Discovery' AND Selection='[Growth (Organic and New Business):]'
+Title='Growth' AND Category='Discovery' AND Selection='No Strategic Alignment'
