@@ -52,3 +52,10 @@ $Concat("Title='Growth AND Category='Discovery' AND Selection='", $Replace($Trim
 $Concat("Title='Growth' AND Category='Discovery' AND Selection='", No Strategic Alignment, "'")
 Title='Growth' AND Category='Discovery' AND Selection='[Growth (Organic and New Business):]'
 Title='Growth' AND Category='Discovery' AND Selection='No Strategic Alignment'
+
+$GetValue(|Charter Ratings|$Concat("Title='Customer Experience' AND Selection='", $Trim([Customer Experience]), "'")|Value)
+=$GetValue(|Charter Ratings|$Concat("Title='CBA Net Cost' AND Selection='", $Trim([CBA Net Cost]), "'")|Value)
+$GetValue(|Charter Ratings|Title='Compliance / Quality' AND Selection='No Impact'|Value)
+$GetValue(|Charter Ratings|$Concat("Title='Contract Mod' AND Selection='No'")|Value)
+Title='Growth' AND Selection='[Growth (Organic and New Business):]'
+=Title='Performance' AND Selection='[Performance]'
