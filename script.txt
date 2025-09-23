@@ -59,3 +59,7 @@ $GetValue(|Charter Ratings|Title='Compliance / Quality' AND Selection='No Impact
 $GetValue(|Charter Ratings|$Concat("Title='Contract Mod' AND Selection='No'")|Value)
 Title='Growth' AND Selection='[Growth (Organic and New Business):]'
 =Title='Performance' AND Selection='[Performance]'
+
+$GetValue(|Charter Ratings|"Title='Contract Mod' AND Selection='" + [Contract Mod] + "'"|Value)
+
+$GetValue(|Charter Ratings|"Title='Performance' AND Selection='" + [Performance] + "'"|Value)
