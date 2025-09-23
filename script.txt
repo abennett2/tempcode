@@ -40,3 +40,6 @@ $FindItem(Charter Ratings|$Concat("LookupKeyCalc='", $Replace($Trim([GrowthKey])
 $GetValue(|Charter Ratings|$($Concat("LookupKeyCalc='",$Replace($Trim([GrowthKey])|"'| "''"),"'"))|Value)
 
 $($FindItem(Charter Ratings|$($Concat("LookupKeyCalc='",$Replace($Trim([GrowthKey])|"'| "''"),"'"," AND Title='Growth'"))))
+
+$GetValue(|Charter Ratings|$Concat("Title='Growth' AND Selection='", [Growth (Organic and New Business):], "')|Value)
+$GetValue(|Charter Ratings|$Concat("Title='Growth' AND Selection='", [Growth (Organic and New Business):], "')|ID)
