@@ -25,3 +25,21 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Next cell
     End If
 End Sub
+
+Sub RefreshLinkFormatting()
+    Dim cell As Range
+    ' This scans existing slide numbers and applies the look
+    For Each cell In Range("E3:E500")
+        If cell.Value <> "" And IsNumeric(cell.Value) Then
+            With cell.Offset(0, -1).Font
+                .Color = RGB(0, 0, 255)
+                .Underline = xlUnderlineStyleSingle
+            End With
+        Else
+            With cell.Offset(0, -1).Font
+                .ColorIndex = xlAutomatic
+                .Underline = xlUnderlineStyleNone
+            End With
+        End If
+    Next cell
+End Sub
