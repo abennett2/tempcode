@@ -1,46 +1,41 @@
-Private Sub Worksheet_BeforeRightClick(ByVal Target As Range, Cancel As Boolean)
+Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
     Dim pptApp As Object
     Dim pptPres As Object
     Dim fullPath As String
     Dim fileName As String
     Dim slideNum As Integer
 
-    ' 1. Only run if the cell has a hidden hyperlink
-    If Target.Hyperlinks.Count > 0 Then
+    ' --- CONFIGURATION ---
+    ' 1. The full path to your presentation
+    fullPath = "C:\Users\YourName\Documents\YourFile.pptx"
+    
+    ' 2. The range where your "Code Numbers" are
+    If Not Intersect(Target, Range("A2:A500")) Is Nothing Then
+        Cancel = True ' Stops Excel from entering "Edit Mode"
         
-        ' 2. This stops the standard Right-Click menu from appearing
-        Cancel = True
-        
-        ' 3. Extract the hidden data
-        fullPath = Target.Hyperlinks(1).Address
+        ' 3. Get slide number from the cell to the RIGHT (Column B)
+        slideNum = Val(Target.Offset(0, 1).Value)
         fileName = Mid(fullPath, InStrRev(fullPath, "\") + 1)
-        
-        If Target.Hyperlinks(1).SubAddress <> "" Then
-            ' This pulls the "Slide Number" part of the link
-            slideNum = Val(Target.Hyperlinks(1).SubAddress)
-        Else
-            slideNum = 1
-        End If
 
         On Error Resume Next
-        ' 4. Check if PowerPoint is already running
+        ' Try to find if PowerPoint is already running
         Set pptApp = GetObject(Class:="PowerPoint.Application")
         
         If pptApp Is Nothing Then
-            ' If not open at all, open a fresh instance
+            ' PPT is not open at all - Start it
             Set pptApp = CreateObject(Class:="PowerPoint.Application")
             pptApp.Visible = True
         End If
         
-        ' 5. Check if the specific file is already open
+        ' Try to find if the specific FILE is already open
         Set pptPres = pptApp.Presentations(fileName)
         
         If pptPres Is Nothing Then
-            ' Open it in the existing instance if it wasn't open
+            ' File is not open - Open it
             Set pptPres = pptApp.Presentations.Open(fullPath)
         End If
         
-        ' 6. Jump to the slide and bring to front
+        ' Jump to the slide and bring to front
         If Not pptPres Is Nothing Then
             pptPres.Slides(slideNum).Select
             pptApp.WindowState = 3 ' Maximized
