@@ -1,65 +1,22 @@
-$ToNumber($Trim($GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|","Compliance / Quality","|",[Compliance / Quality])|"Value")))
-$ToNumber($Trim($GetValue("Charter Ratings"|"LookupKey"|$Concat("Discovery","|","Performance","|",[Performance])|"Value")))
-
-$GetValue("Charter Ratings"|"LookupKey"|"Discovery|Compliance / Quality|"[Compliance / Quality]|"Value")
-
-$GetValue(|"Charter Ratings"|"LookupKey='""Discovery|Compliance / Quality|"[Compliance / Quality]"'"|"Value")
-
-$If(IsNull($GetValue(|"Charter Ratings"|"LookupKey='""Discovery-Compliance / Quality-"[Compliance / Quality]"'"|"Value")) | "0" | $GetValue(|"Charter Ratings"|"LookupKey='""Discovery-Compliance / Quality-"[Compliance / Quality]"'"|"Value"))
-
-$GetValue(|Charter Ratings|LookupKey=Discovery-Growth-[Growth (Organic and New Business):]|Value)
-
-$GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|LookupKey="$([PerfKey])")|Value)
-$GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|Title=Performance and LookupKey=[Performance])|Value)
-$GetValue(|Charter Ratings|ID=$FindItem(Charter Ratings|LookupKeyCalc=[PerfKey])|Value)
-
-GET https://triwesthcac.sharepoint.com/sites/ePMO/Charters_dev/_api/web/lists/getbytitle(@listName)?@listName=%27%22Charter%20Ratings%22%27&$select=Id,Title,AllowContentTypes,BaseTemplate,BaseType,EnableVersioning 404 (Not Found)
-
-
-$GetValue(|Charter Ratings|
-  $Concat(
-    "LookupKey='", $Replace($Trim([PerfKey])|"'| "''"),
-    "' AND Title='Performance' AND Selection='Cross-Functional (organizational impact)'"
-  )
-|Value)
-
-$GetValue(|Charter Ratings|$Concat("LookupKeyCalc eq '",$Replace($Trim([GrowthKey])|"'| "''"),"'")|Value)
-$GetValue(|Charter Ratings|$Concat("LookupKeyCalc='",$Replace($Trim([GrowthKey])|"'| "''"),"'")|Value)
-$GetValue(|Charter Ratings|ID=11|Value)
-$GetValue(|Charter Ratings|$Concat("LookupKey='", $Trim([GrowthKey]), "'")|Value)
-$GetValue(|Charter Ratings|$Concat(LookupKey=', $Trim([GrowthKey]),')|Value)
-
-LookupKey=Discovery-Growth-No Strategic Alignment
-Title=Growth
-Selection=No Strategic Alignment
-Value=0
-$Concat("FILTER=> LookupKeyCalc='", $Replace($Trim([GrowthKey])|"'| "''"), "'") =
-$Concat("FILTER=> LookupKeyCalc='", Discovery-Growth-No Strategic Alignment, "'")
-$FindItem(Charter Ratings|$Concat("LookupKeyCalc='", $Replace($Trim([GrowthKey])|"'| "''"), "'"))
-
-$GetValue(|Charter Ratings|$($Concat("LookupKeyCalc='",$Replace($Trim([GrowthKey])|"'| "''"),"'"))|Value)
-$Concat("Title='Growth AND Category='Discovery' AND Selection='", $Replace($Trim([Growth (Organic and New Business):])|"'| "''"), "'")
-
-$($FindItem(Charter Ratings|$($Concat("LookupKeyCalc='",$Replace($Trim([GrowthKey])|"'| "''"),"'"," AND Title='Growth'"))))
-
-$GetValue(|Charter Ratings|$Concat("Title='Growth' AND Selection='", [Growth (Organic and New Business):], "')|Value)
-$GetValue(|Charter Ratings|$Concat("Title='Growth' AND Selection='", [Growth (Organic and New Business):], "')|ID)
-
-
-=$Concat("Title='Growth AND Category='Discovery' AND Selection='", $Replace($Trim([Growth (Organic and New Business):])|"'| "''"), "'")
-=$Concat("Title='Growth' AND Category='Discovery' AND Selection='", No Strategic Alignment, "'")
-$Concat("Title='Growth AND Category='Discovery' AND Selection='", $Replace($Trim([Growth (Organic and New Business):])|"'| "''"), "'")
-$Concat("Title='Growth' AND Category='Discovery' AND Selection='", No Strategic Alignment, "'")
-Title='Growth' AND Category='Discovery' AND Selection='[Growth (Organic and New Business):]'
-Title='Growth' AND Category='Discovery' AND Selection='No Strategic Alignment'
-
-$GetValue(|Charter Ratings|$Concat("Title='Customer Experience' AND Selection='", $Trim([Customer Experience]), "'")|Value)
-=$GetValue(|Charter Ratings|$Concat("Title='CBA Net Cost' AND Selection='", $Trim([CBA Net Cost]), "'")|Value)
-$GetValue(|Charter Ratings|Title='Compliance / Quality' AND Selection='No Impact'|Value)
-$GetValue(|Charter Ratings|$Concat("Title='Contract Mod' AND Selection='No'")|Value)
-Title='Growth' AND Selection='[Growth (Organic and New Business):]'
-=Title='Performance' AND Selection='[Performance]'
-
-$GetValue(|Charter Ratings|"Title='Contract Mod' AND Selection='" + [Contract Mod] + "'"|Value)
-
-$GetValue(|Charter Ratings|"Title='Performance' AND Selection='" + [Performance] + "'"|Value)
+Private Sub Worksheet_Change(ByVal Target As Range)
+    Dim cell As Range
+    ' 1. Only run if a change happens in your Slide Number range (E6:E13)
+    If Not Intersect(Target, Range("E6:E13")) Is Nothing Then
+        For Each cell In Intersect(Target, Range("E6:E13"))
+            ' 2. If the slide number cell is NOT empty and IS a number
+            If cell.Value <> "" And IsNumeric(cell.Value) Then
+                ' Format the cell to the LEFT (Column D) as a link
+                With cell.Offset(0, -1).Font
+                    .Color = -16776961 ' Standard Blue
+                    .Underline = xlUnderlineStyleSingle
+                End With
+            Else
+                ' 3. Otherwise, reset the cell to the LEFT to normal text
+                With cell.Offset(0, -1).Font
+                    .ColorIndex = xlAutomatic
+                    .Underline = xlUnderlineStyleNone
+                End With
+            End If
+        Next cell
+    End If
+End Sub
