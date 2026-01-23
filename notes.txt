@@ -1,4 +1,4 @@
-Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
+Private Sub Worksheet_SelectionChange(ByVal Target As Range)
     Dim pptApp As Object
     Dim pptPres As Object
     Dim fullPath As String
@@ -6,41 +6,39 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     Dim slideNum As Integer
     Dim folderPath As String
 
-    ' 1. Check the range
-    If Not Intersect(Target, Range("D6:D13")) Is Nothing Then
-        Cancel = True 
+    ' 1. Only run if a SINGLE cell in your range is clicked
+    If Not Intersect(Target, Range("D1:D500")) Is Nothing Then
+        If Target.Cells.Count > 1 Then Exit Sub
 
-        ' 2. SHAREPOINT PATH LOGIC
-        ' Get the current folder path from the URL
+        ' --- NEW SAFETY CHECK ---
+        ' 2. Check if the cell to the right (Column E) is empty or not a number
+        If Target.Offset(0, 1).Value = "" Or Not IsNumeric(Target.Offset(0, 1).Value) Then
+            Exit Sub ' Do nothing and let the user select the cell normally
+        End If
+        
+        ' 3. Get the slide number now that we know it's valid
+        slideNum = Val(Target.Offset(0, 1).Value)
+
+        ' 4. SHAREPOINT PATH LOGIC
         folderPath = Left(ThisWorkbook.Path, InStrRev(ThisWorkbook.Path, "/") - 1)
         fileName = "Charter Dev Form_v1.ppsx"
-        
-        ' Construct the path to the parent folder
-        ' In SharePoint, we use "/" instead of "\"
         fullPath = folderPath & "/" & fileName
-        
-        ' 3. Get slide number from Column E
-        slideNum = Val(Target.Offset(0, 1).Value)
-        If slideNum = 0 Then slideNum = 1
 
         On Error Resume Next
-        ' 4. Connect to PowerPoint
+        ' 5. Connect to PowerPoint
         Set pptApp = GetObject(Class:="PowerPoint.Application")
         If pptApp Is Nothing Then
             Set pptApp = CreateObject(Class:="PowerPoint.Application")
             pptApp.Visible = True
         End If
         
-        ' 5. Open the presentation if not already open
-        ' We use the "Friendly Name" to check if it's already open
-        Set pptPres = pptApp.Presentations("Charter Dev Form_v1.ppsx")
-        
+        ' 6. Open/Find the presentation
+        Set pptPres = pptApp.Presentations(fileName)
         If pptPres Is Nothing Then
-            ' If not open, open it using the SharePoint URL
             Set pptPres = pptApp.Presentations.Open(fullPath)
         End If
         
-        ' 6. Navigate to Slide
+        ' 7. Navigate to Slide
         If Not pptPres Is Nothing Then
             If pptPres.SlideShowWindow Is Nothing Then
                 pptPres.Slides(slideNum).Select
@@ -50,10 +48,13 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
             
             pptApp.Visible = True
             pptApp.WindowState = 3 
-            AppActivate "PowerPoint" ' Simplified activation for SharePoint
-        Else
-            MsgBox "SharePoint Error: Could not find the file at " & vbCrLf & fullPath
+            AppActivate "PowerPoint"
         End If
+        
+        ' 8. UI POLISH: Move selection off the cell so it can be clicked again
+        ' We move to the slide number cell itself
+        Target.Offset(0, 1).Select 
+        
         On Error GoTo 0
     End If
 End Sub
