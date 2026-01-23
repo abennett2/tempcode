@@ -1,39 +1,49 @@
-Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
+Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean)
     Dim pptApp As Object
     Dim pptPres As Object
     Dim fullPath As String
     Dim fileName As String
     Dim slideNum As Integer
 
-    ' 1. Get the file path and slide number from the link
-    fullPath = Target.Address
-    fileName = Mid(fullPath, InStrRev(fullPath, "\") + 1)
-    
-    If Target.SubAddress <> "" Then
-        slideNum = Val(Target.SubAddress)
-    Else
-        slideNum = 1
-    End If
-
-    On Error Resume Next
-    ' 2. Look for an existing PowerPoint instance
-    Set pptApp = GetObject(Class:="PowerPoint.Application")
-    
-    If pptApp Is Nothing Then
-        ' If PPT isn't open at all, let Excel handle it normally and exit
-        Exit Sub
-    End If
-    
-    ' 3. Check if THIS specific file is already open
-    Set pptPres = pptApp.Presentations(fileName)
-    
-    If Not pptPres Is Nothing Then
-        ' SUCCESS: The file is open. Navigate and stop Excel from opening a new one.
-        pptPres.Slides(slideNum).Select
-        pptApp.WindowState = 3 ' Maximized
-        AppActivate pptApp.Caption
+    ' Only run if the cell has a hyperlink
+    If Target.Hyperlinks.Count > 0 Then
         
-        ' This is the trick: we've done the work, so we don't need Excel to do more.
+        ' 1. "Cancel" tells Excel NOT to do its default hyperlink action
+        Cancel = True
+        
+        fullPath = Target.Hyperlinks(1).Address
+        fileName = Mid(fullPath, InStrRev(fullPath, "\") + 1)
+        
+        If Target.Hyperlinks(1).SubAddress <> "" Then
+            slideNum = Val(Target.Hyperlinks(1).SubAddress)
+        Else
+            slideNum = 1
+        End If
+
+        On Error Resume Next
+        ' 2. Try to find an existing PowerPoint window
+        Set pptApp = GetObject(Class:="PowerPoint.Application")
+        
+        If pptApp Is Nothing Then
+            ' If PowerPoint isn't open at all, open it normally
+            Set pptApp = CreateObject(Class:="PowerPoint.Application")
+            pptApp.Visible = True
+            Set pptPres = pptApp.Presentations.Open(fullPath)
+        Else
+            ' If PowerPoint is already open, check if this file is open
+            Set pptPres = pptApp.Presentations(fileName)
+            If pptPres Is Nothing Then
+                ' File isn't open yet, so open it in the existing PPT instance
+                Set pptPres = pptApp.Presentations.Open(fullPath)
+            End If
+        End If
+        
+        ' 3. Jump to slide and bring to front
+        If Not pptPres Is Nothing Then
+            pptPres.Slides(slideNum).Select
+            pptApp.WindowState = 3 ' Maximized
+            AppActivate pptApp.Caption
+        End If
+        On Error GoTo 0
     End If
-    On Error GoTo 0
 End Sub
