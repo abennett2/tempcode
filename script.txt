@@ -1,22 +1,27 @@
 Private Sub Worksheet_Change(ByVal Target As Range)
     Dim cell As Range
-    ' 1. Only run if a change happens in your Slide Number range (E6:E13)
-    If Not Intersect(Target, Range("E6:E13")) Is Nothing Then
-        For Each cell In Intersect(Target, Range("E6:E13"))
-            ' 2. If the slide number cell is NOT empty and IS a number
+    Dim watchRange As Range
+    Set watchRange = Range("E3:E500") 
+    
+    ' Only run if the change happened in the slide number column
+    If Not Intersect(Target, watchRange) Is Nothing Then
+        ' Loop through changed cells in case you deleted/pasted multiple
+        For Each cell In Intersect(Target, watchRange)
+            
+            ' If Column E has a number, make D blue/underlined
             If cell.Value <> "" And IsNumeric(cell.Value) Then
-                ' Format the cell to the LEFT (Column D) as a link
                 With cell.Offset(0, -1).Font
-                    .Color = -16776961 ' Standard Blue
+                    .Color = RGB(0, 0, 255) ' Bright Blue
                     .Underline = xlUnderlineStyleSingle
                 End With
             Else
-                ' 3. Otherwise, reset the cell to the LEFT to normal text
+                ' If Column E is blank/text, force D back to standard black
                 With cell.Offset(0, -1).Font
                     .ColorIndex = xlAutomatic
                     .Underline = xlUnderlineStyleNone
                 End With
             End If
+            
         Next cell
     End If
 End Sub
