@@ -1,47 +1,39 @@
-Private Sub Worksheet_SelectionChange(ByVal Target As Range)
+Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
     Dim pptApp As Object
     Dim pptPres As Object
     Dim fullPath As String
+    Dim fileName As String
     Dim slideNum As Integer
-    Dim parts() As String
-    
-    ' Only run if a single cell in your specific column is clicked (e.g., Column 1)
-    If Target.Column = 1 And Target.Cells.Count = 1 Then
-        ' Check if the cell actually contains a hyperlink
-        If Target.Hyperlinks.Count > 0 Then
-            
-            ' Extract the hidden address
-            fullPath = Target.Hyperlinks(1).Address
-            
-            ' Handle the slide number if it's in the sub-address (the # part)
-            If Target.Hyperlinks(1).SubAddress <> "" Then
-                slideNum = Val(Target.Hyperlinks(1).SubAddress)
-            Else
-                slideNum = 1
-            End If
 
-            On Error Resume Next
-            ' Check for existing PowerPoint instance
-            Set pptApp = GetObject(Class:="PowerPoint.Application")
-            
-            If pptApp Is Nothing Then
-                Set pptApp = CreateObject(Class:="PowerPoint.Application")
-                pptApp.Visible = True
-            End If
-            
-            ' Open file or switch to it if already open
-            Set pptPres = pptApp.Presentations.Open(fullPath, ReadOnly:=False, Untitled:=False, WithWindow:=True)
-            
-            ' Navigate to the slide
-            If Not pptPres Is Nothing Then
-                pptPres.Slides(slideNum).Select
-                pptApp.WindowState = 3 ' Maximized
-                AppActivate pptApp.Caption
-            End If
-            On Error GoTo 0
-            
-            ' OPTIONAL: This stops Excel from running its default "open new window" link behavior
-            Cancel = True
-        End If
+    ' 1. Get the file path and slide number from the link
+    fullPath = Target.Address
+    fileName = Mid(fullPath, InStrRev(fullPath, "\") + 1)
+    
+    If Target.SubAddress <> "" Then
+        slideNum = Val(Target.SubAddress)
+    Else
+        slideNum = 1
     End If
+
+    On Error Resume Next
+    ' 2. Look for an existing PowerPoint instance
+    Set pptApp = GetObject(Class:="PowerPoint.Application")
+    
+    If pptApp Is Nothing Then
+        ' If PPT isn't open at all, let Excel handle it normally and exit
+        Exit Sub
+    End If
+    
+    ' 3. Check if THIS specific file is already open
+    Set pptPres = pptApp.Presentations(fileName)
+    
+    If Not pptPres Is Nothing Then
+        ' SUCCESS: The file is open. Navigate and stop Excel from opening a new one.
+        pptPres.Slides(slideNum).Select
+        pptApp.WindowState = 3 ' Maximized
+        AppActivate pptApp.Caption
+        
+        ' This is the trick: we've done the work, so we don't need Excel to do more.
+    End If
+    On Error GoTo 0
 End Sub
