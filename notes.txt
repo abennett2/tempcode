@@ -7,15 +7,15 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
 
     ' --- CONFIGURATION ---
     ' 1. The full path to your presentation
-    fullPath = "C:\Users\YourName\Documents\YourFile.pptx"
+    fileName = "Charter%20Dev%20Form_v1.ppsx"
+    fullPath = parentFolder & "\" & fileName
     
     ' 2. The range where your "Code Numbers" are
-    If Not Intersect(Target, Range("A2:A500")) Is Nothing Then
+    If Not Intersect(Target, Range("D6:D13")) Is Nothing Then
         Cancel = True ' Stops Excel from entering "Edit Mode"
         
         ' 3. Get slide number from the cell to the RIGHT (Column B)
         slideNum = Val(Target.Offset(0, 1).Value)
-        fileName = Mid(fullPath, InStrRev(fullPath, "\") + 1)
 
         On Error Resume Next
         ' Try to find if PowerPoint is already running
