@@ -1,59 +1,56 @@
 Private Sub Worksheet_SelectionChange(ByVal Target As Range)
-    Dim pptApp As Object
-    Dim pptPres As Object
-    Dim fullPath As String
-    Dim fileName As String
+    Dim pptApp As Object, pptPres As Object
+    Dim fullPath As String, fileName As String, folderPath As String
     Dim slideNum As Integer
-    Dim folderPath As String
 
-    ' 1. Only run if a SINGLE cell in your range is clicked
-    If Not Intersect(Target, Range("D1:D500")) Is Nothing Then
+    ' 1. Only run if a SINGLE cell in range is clicked
+    If Not Intersect(Target, Range("D3:D500")) Is Nothing Then
         If Target.Cells.Count > 1 Then Exit Sub
 
-        ' --- NEW SAFETY CHECK ---
-        ' 2. Check if the cell to the right (Column E) is empty or not a number
+        ' 2. SAFETY CHECK: Only proceed if there is a slide number
         If Target.Offset(0, 1).Value = "" Or Not IsNumeric(Target.Offset(0, 1).Value) Then
-            Exit Sub ' Do nothing and let the user select the cell normally
+            Exit Sub 
         End If
         
-        ' 3. Get the slide number now that we know it's valid
         slideNum = Val(Target.Offset(0, 1).Value)
-
-        ' 4. SHAREPOINT PATH LOGIC
         folderPath = Left(ThisWorkbook.Path, InStrRev(ThisWorkbook.Path, "/") - 1)
         fileName = "Charter Dev Form_v1.ppsx"
         fullPath = folderPath & "/" & fileName
 
         On Error Resume Next
-        ' 5. Connect to PowerPoint
         Set pptApp = GetObject(Class:="PowerPoint.Application")
         If pptApp Is Nothing Then
             Set pptApp = CreateObject(Class:="PowerPoint.Application")
             pptApp.Visible = True
         End If
         
-        ' 6. Open/Find the presentation
         Set pptPres = pptApp.Presentations(fileName)
         If pptPres Is Nothing Then
             Set pptPres = pptApp.Presentations.Open(fullPath)
         End If
         
-        ' 7. Navigate to Slide
         If Not pptPres Is Nothing Then
+            ' Navigate to Slide
             If pptPres.SlideShowWindow Is Nothing Then
                 pptPres.Slides(slideNum).Select
             Else
                 pptPres.SlideShowWindow.View.GotoSlide slideNum
             End If
             
+            ' 3. WINDOW MANAGEMENT
             pptApp.Visible = True
-            pptApp.WindowState = 3 
-            AppActivate "PowerPoint"
+            pptApp.WindowState = 3 ' Maximized
+            
+            AppActivate "PowerPoint" 
         End If
         
-        ' 8. UI POLISH: Move selection off the cell so it can be clicked again
-        ' We move to the slide number cell itself
-        Target.Offset(0, 1).Select 
+        ' 4. FOCUS FIX
+        ' Instead of selecting a different cell, "deselect" and re-select
+        ' This allows the user to click the SAME cell twice if needed
+        Application.EnableEvents = False ' Prevent the code from re-triggering itself
+        Target.Offset(0, 1).Select       ' Briefly move right
+        Target.Select                    ' Move back to the "Link" cell
+        Application.EnableEvents = True
         
         On Error GoTo 0
     End If
