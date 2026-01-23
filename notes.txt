@@ -4,42 +4,53 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     Dim fullPath As String
     Dim fileName As String
     Dim slideNum As Integer
+    Dim parentFolder As String
 
-    ' --- CONFIGURATION ---
-    ' 1. The full path to your presentation
-    fileName = "Charter%20Dev%20Form_v1.ppsx"
-    fullPath = parentFolder & "\" & fileName
-    
-    ' 2. The range where your "Code Numbers" are
+    ' 1. Check if the double-click happened in your range
     If Not Intersect(Target, Range("D6:D13")) Is Nothing Then
-        Cancel = True ' Stops Excel from entering "Edit Mode"
+        Cancel = True 
+
+        ' 2. Define the File and Parent Folder
+        ' This line calculates the folder one level up from your Excel file
+        parentFolder = Left(ThisWorkbook.Path, InStrRev(ThisWorkbook.Path, "\") - 1)
+        fileName = "Charter Dev Form_v1.ppsx"
+        fullPath = parentFolder & "\" & fileName
         
-        ' 3. Get slide number from the cell to the RIGHT (Column B)
+        ' DEBUG: Uncomment the next line if it still fails to see the path
+        ' MsgBox "Looking for: " & fullPath
+
+        ' 3. Get slide number from Column E (one to the right of D)
         slideNum = Val(Target.Offset(0, 1).Value)
 
         On Error Resume Next
-        ' Try to find if PowerPoint is already running
         Set pptApp = GetObject(Class:="PowerPoint.Application")
         
         If pptApp Is Nothing Then
-            ' PPT is not open at all - Start it
             Set pptApp = CreateObject(Class:="PowerPoint.Application")
             pptApp.Visible = True
         End If
         
-        ' Try to find if the specific FILE is already open
+        ' 4. Look for the file
         Set pptPres = pptApp.Presentations(fileName)
         
         If pptPres Is Nothing Then
-            ' File is not open - Open it
+            ' If not open, try to open it
             Set pptPres = pptApp.Presentations.Open(fullPath)
         End If
         
-        ' Jump to the slide and bring to front
+        ' 5. Navigate
         If Not pptPres Is Nothing Then
-            pptPres.Slides(slideNum).Select
-            pptApp.WindowState = 3 ' Maximized
+            ' Since it is a .ppsx, we check if it's in Show mode or Edit mode
+            If pptPres.SlideShowWindow Is Nothing Then
+                pptPres.Slides(slideNum).Select
+            Else
+                pptPres.SlideShowWindow.View.GotoSlide slideNum
+            End If
+            
+            pptApp.WindowState = 3 
             AppActivate pptApp.Caption
+        Else
+            MsgBox "File not found! Please check if the file is in: " & parentFolder
         End If
         On Error GoTo 0
     End If
