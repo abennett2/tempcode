@@ -1,86 +1,47 @@
-console.log("Script execution started.");
+Private Sub Worksheet_SelectionChange(ByVal Target As Range)
+    Dim pptApp As Object
+    Dim pptPres As Object
+    Dim fullPath As String
+    Dim slideNum As Integer
+    Dim parts() As String
+    
+    ' Only run if a single cell in your specific column is clicked (e.g., Column 1)
+    If Target.Column = 1 And Target.Cells.Count = 1 Then
+        ' Check if the cell actually contains a hyperlink
+        If Target.Hyperlinks.Count > 0 Then
+            
+            ' Extract the hidden address
+            fullPath = Target.Hyperlinks(1).Address
+            
+            ' Handle the slide number if it's in the sub-address (the # part)
+            If Target.Hyperlinks(1).SubAddress <> "" Then
+                slideNum = Val(Target.Hyperlinks(1).SubAddress)
+            Else
+                slideNum = 1
+            End If
 
-function runFinalScript() {
-    if (typeof fd !== 'undefined' && fd.spRendered) {
-        console.log("InfoWise fd object is ready.");
-
-        fd.spRendered(function() {
-            console.log("Form is rendered. Attaching field logic...");
-
-            function getRating(sourceFieldName, keyPart, targetFieldName) {
-                var sourceField = fd.field(sourceFieldName);
-                if (!sourceField) {
-                    console.error("Source field '" + sourceFieldName + "' not found on the form.");
-                    return;
-                }
-                var fieldValue = sourceField.value();
-                if (!fieldValue) {
-                    fd.field(targetFieldName).value(0);
-                    return;
-                }
-
-                var lookupKey = "Discovery|" + keyPart + "|" + fieldValue;
-                var apiUrl = _spPageContextInfo.webAbsoluteUrl + "/_api/web/lists/getbytitle('Charter Ratings')/items?$filter=LookupKey eq '" + encodeURIComponent(lookupKey) + "'";
-                
-                // Using modern 'fetch' instead of jQuery 'ajax'
-                fetch(apiUrl, {
-                    method: 'GET',
-                    headers: { 'Accept': 'application/json; odata=verbose' }
-                })
-                .then(function(response) {
-                    if (!response.ok) {
-                        // If the server response is an error (like 404 or 500), throw an error
-                        throw new Error('Network response was not ok for ' + targetFieldName);
-                    }
-                    return response.json();
-                })
-                .then(function(data) {
-                    var score = 0;
-                    if (data.d.results && data.d.results.length > 0) {
-                        var lookedUpValue = data.d.results[0].Value;
-                        var parsedValue = parseFloat(String(lookedUpValue).trim());
-                        if (!isNaN(parsedValue)) {
-                            score = parsedValue;
-                        }
-                    }
-                    fd.field(targetFieldName).value(score);
-                })
-                .catch(function(error) {
-                    console.error("API Fetch Error for " + targetFieldName + ": ", error);
-                    fd.field(targetFieldName).value(0);
-                });
-            }
-
-            function calculateAllRatings() {
-                console.log("Running all rating calculations...");
-                getRating('ComplianceQuality', 'Compliance / Quality', 'CompQualScoreCalc');
-                getRating('Performance', 'Performance', 'PerfScoreCalc');
-                getRating('ContractMod', 'Contract Mod', 'ContractModScoreCalc');
-                getRating('Growth', 'Growth (Organic and New Business):', 'GrowthScoreCalc');
-                getRating('CustomerExperience', 'Customer Experience', 'CustExpScoreCalc');
-                getRating('CBANetCost', 'CBA Net Cost', 'CBANetCostScoreCalc');
-            }
-
-            // --- SCRIPT SETUP ---
-            var projectLookupField = 'LookupProject'; // Your verified internal name
-
-            fd.field(projectLookupField).$on('change', function() {
-                console.log("Project Lookup field changed. Waiting to calculate...");
-                setTimeout(calculateAllRatings, 750);
-            });
-
-            if (fd.field(projectLookupField).value) {
-                console.log("Running initial calculations on form load for existing item...");
-                setTimeout(calculateAllRatings, 750);
-            } else {
-                console.log("This is a new item. Waiting for project selection.");
-            }
-        });
-
-    } else {
-        setTimeout(runFinalScript, 100);
-    }
-}
-
-// Start the entire process
-runFinalScript();
+            On Error Resume Next
+            ' Check for existing PowerPoint instance
+            Set pptApp = GetObject(Class:="PowerPoint.Application")
+            
+            If pptApp Is Nothing Then
+                Set pptApp = CreateObject(Class:="PowerPoint.Application")
+                pptApp.Visible = True
+            End If
+            
+            ' Open file or switch to it if already open
+            Set pptPres = pptApp.Presentations.Open(fullPath, ReadOnly:=False, Untitled:=False, WithWindow:=True)
+            
+            ' Navigate to the slide
+            If Not pptPres Is Nothing Then
+                pptPres.Slides(slideNum).Select
+                pptApp.WindowState = 3 ' Maximized
+                AppActivate pptApp.Caption
+            End If
+            On Error GoTo 0
+            
+            ' OPTIONAL: This stops Excel from running its default "open new window" link behavior
+            Cancel = True
+        End If
+    End If
+End Sub
