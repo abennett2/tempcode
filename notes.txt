@@ -4,23 +4,20 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     Dim fullPath As String
     Dim fileName As String
     Dim slideNum As Integer
-    Dim parentFolder As String
+    Dim folderPath As String
 
     ' 1. Check the range
     If Not Intersect(Target, Range("D6:D13")) Is Nothing Then
         Cancel = True 
 
-        ' 2. Handle the Folder Path
-        ' This checks if the workbook has been saved and gets the parent folder
-        If InStr(ThisWorkbook.Path, "\") > 0 Then
-            parentFolder = Left(ThisWorkbook.Path, InStrRev(ThisWorkbook.Path, "\") - 1)
-        Else
-            MsgBox "Please save your Excel file first!", vbCritical
-            Exit Sub
-        End If
-        
+        ' 2. SHAREPOINT PATH LOGIC
+        ' Get the current folder path from the URL
+        folderPath = Left(ThisWorkbook.Path, InStrRev(ThisWorkbook.Path, "/") - 1)
         fileName = "Charter Dev Form_v1.ppsx"
-        fullPath = parentFolder & "\" & fileName
+        
+        ' Construct the path to the parent folder
+        ' In SharePoint, we use "/" instead of "\"
+        fullPath = folderPath & "/" & fileName
         
         ' 3. Get slide number from Column E
         slideNum = Val(Target.Offset(0, 1).Value)
@@ -35,13 +32,11 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
         End If
         
         ' 5. Open the presentation if not already open
-        Set pptPres = pptApp.Presentations(fileName)
+        ' We use the "Friendly Name" to check if it's already open
+        Set pptPres = pptApp.Presentations("Charter Dev Form_v1.ppsx")
+        
         If pptPres Is Nothing Then
-            ' Check if file actually exists at the path
-            If Dir(fullPath) = "" Then
-                MsgBox "File NOT found at:" & vbCrLf & fullPath, vbCritical
-                Exit Sub
-            End If
+            ' If not open, open it using the SharePoint URL
             Set pptPres = pptApp.Presentations.Open(fullPath)
         End If
         
@@ -53,14 +48,11 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
                 pptPres.SlideShowWindow.View.GotoSlide slideNum
             End If
             
-            ' 7. Bring to Front (The "Error 5" Fix)
-            ' Instead of AppActivate, we use the WindowState command
             pptApp.Visible = True
-            pptApp.WindowState = 3 ' 3 = ppWindowMaximized
-            
-            ' Try AppActivate only if it doesn't crash
-            Err.Clear
-            AppActivate pptApp.Caption
+            pptApp.WindowState = 3 
+            AppActivate "PowerPoint" ' Simplified activation for SharePoint
+        Else
+            MsgBox "SharePoint Error: Could not find the file at " & vbCrLf & fullPath
         End If
         On Error GoTo 0
     End If
