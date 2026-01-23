@@ -6,51 +6,61 @@ Private Sub Worksheet_BeforeDoubleClick(ByVal Target As Range, Cancel As Boolean
     Dim slideNum As Integer
     Dim parentFolder As String
 
-    ' 1. Check if the double-click happened in your range
+    ' 1. Check the range
     If Not Intersect(Target, Range("D6:D13")) Is Nothing Then
         Cancel = True 
 
-        ' 2. Define the File and Parent Folder
-        ' This line calculates the folder one level up from your Excel file
-        parentFolder = Left(ThisWorkbook.Path, InStrRev(ThisWorkbook.Path, "\") - 1)
+        ' 2. Handle the Folder Path
+        ' This checks if the workbook has been saved and gets the parent folder
+        If InStr(ThisWorkbook.Path, "\") > 0 Then
+            parentFolder = Left(ThisWorkbook.Path, InStrRev(ThisWorkbook.Path, "\") - 1)
+        Else
+            MsgBox "Please save your Excel file first!", vbCritical
+            Exit Sub
+        End If
+        
         fileName = "Charter Dev Form_v1.ppsx"
         fullPath = parentFolder & "\" & fileName
         
-        ' DEBUG: Uncomment the next line if it still fails to see the path
-        ' MsgBox "Looking for: " & fullPath
-
-        ' 3. Get slide number from Column E (one to the right of D)
+        ' 3. Get slide number from Column E
         slideNum = Val(Target.Offset(0, 1).Value)
+        If slideNum = 0 Then slideNum = 1
 
         On Error Resume Next
+        ' 4. Connect to PowerPoint
         Set pptApp = GetObject(Class:="PowerPoint.Application")
-        
         If pptApp Is Nothing Then
             Set pptApp = CreateObject(Class:="PowerPoint.Application")
             pptApp.Visible = True
         End If
         
-        ' 4. Look for the file
+        ' 5. Open the presentation if not already open
         Set pptPres = pptApp.Presentations(fileName)
-        
         If pptPres Is Nothing Then
-            ' If not open, try to open it
+            ' Check if file actually exists at the path
+            If Dir(fullPath) = "" Then
+                MsgBox "File NOT found at:" & vbCrLf & fullPath, vbCritical
+                Exit Sub
+            End If
             Set pptPres = pptApp.Presentations.Open(fullPath)
         End If
         
-        ' 5. Navigate
+        ' 6. Navigate to Slide
         If Not pptPres Is Nothing Then
-            ' Since it is a .ppsx, we check if it's in Show mode or Edit mode
             If pptPres.SlideShowWindow Is Nothing Then
                 pptPres.Slides(slideNum).Select
             Else
                 pptPres.SlideShowWindow.View.GotoSlide slideNum
             End If
             
-            pptApp.WindowState = 3 
+            ' 7. Bring to Front (The "Error 5" Fix)
+            ' Instead of AppActivate, we use the WindowState command
+            pptApp.Visible = True
+            pptApp.WindowState = 3 ' 3 = ppWindowMaximized
+            
+            ' Try AppActivate only if it doesn't crash
+            Err.Clear
             AppActivate pptApp.Caption
-        Else
-            MsgBox "File not found! Please check if the file is in: " & parentFolder
         End If
         On Error GoTo 0
     End If
