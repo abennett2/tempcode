@@ -1,45 +1,24 @@
-Private Sub Worksheet_Change(ByVal Target As Range)
+Sub SyncHyperlinks()
+    ' This macro creates the "Hand Pointer" links in Column D based on Column G
+    Dim ws As Worksheet
     Dim cell As Range
-    Dim watchRange As Range
-    Set watchRange = Range("E3:E500") 
+    Set ws = ActiveSheet
     
-    ' Only run if the change happened in the slide number column
-    If Not Intersect(Target, watchRange) Is Nothing Then
-        ' Loop through changed cells in case you deleted/pasted multiple
-        For Each cell In Intersect(Target, watchRange)
-            
-            ' If Column E has a number, make D blue/underlined
-            If cell.Value <> "" And IsNumeric(cell.Value) Then
-                With cell.Offset(0, -1).Font
-                    .Color = RGB(0, 0, 255) ' Bright Blue
-                    .Underline = xlUnderlineStyleSingle
-                End With
-            Else
-                ' If Column E is blank/text, force D back to standard black
-                With cell.Offset(0, -1).Font
-                    .ColorIndex = xlAutomatic
-                    .Underline = xlUnderlineStyleNone
-                End With
-            End If
-            
-        Next cell
-    End If
-End Sub
-
-Sub RefreshLinkFormatting()
-    Dim cell As Range
-    ' This scans existing slide numbers and applies the look
-    For Each cell In Range("E3:E500")
-        If cell.Value <> "" And IsNumeric(cell.Value) Then
-            With cell.Offset(0, -1).Font
-                .Color = RGB(0, 0, 255)
-                .Underline = xlUnderlineStyleSingle
-            End With
+    On Error Resume Next
+    For Each cell In ws.Range("G3:G500")
+        Dim dCell As Range
+        Set dCell = ws.Cells(cell.Row, "D")
+        
+        If IsNumeric(cell.Value) And cell.Value <> "" Then
+            ' Create a real hyperlink object to force the Hand Pointer
+            ws.Hyperlinks.Add Anchor:=dCell, Address:="", SubAddress:="'" & ws.Name & "'!D" & cell.Row
+            dCell.Font.Color = RGB(0, 0, 255)
+            dCell.Font.Underline = xlUnderlineStyleSingle
         Else
-            With cell.Offset(0, -1).Font
-                .ColorIndex = xlAutomatic
-                .Underline = xlUnderlineStyleNone
-            End With
+            dCell.Hyperlinks.Delete
+            dCell.Font.ColorIndex = xlAutomatic
+            dCell.Font.Underline = xlUnderlineStyleNone
         End If
     Next cell
+    MsgBox "Hand pointers synchronized!", vbInformation
 End Sub
