@@ -1,24 +1,50 @@
-Private Sub Worksheet_Change(ByVal Target As Range)
-    If Not Intersect(Target, Range("D3:D500")) Is Nothing Then
-        Dim cell As Range
-        Application.EnableEvents = False
-        For Each cell In Intersect(Target, Range("D3:D500"))
-            Dim eCell As Range: Set eCell = Me.Range("E" & cell.Row)
-            ' Clear any existing hyperlinks and reset formatting first
-            On Error Resume Next
-            eCell.Hyperlinks.Delete
-            On Error GoTo 0
-            eCell.Font.ColorIndex = xlAutomatic
-            eCell.Font.Underline = xlUnderlineStyleNone
-            
-            If IsNumeric(cell.Value) And cell.Value > 0 Then
-                ' Add dummy hyperlink for hand cursor and event trigger
-                Me.Hyperlinks.Add Anchor:=eCell, Address:="", SubAddress:="'" & Me.Name & "'!E" & cell.Row
-                eCell.Font.Color = RGB(47, 117, 181)
-                eCell.Font.Underline = xlUnderlineStyleSingle
+Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
+    If Not Intersect(Target.Range, Me.Range("E3:E500")) Is Nothing Then
+        Dim pptApp As Object, pptPres As Object
+        Dim fileName As String: fileName = "Charter Dev Form_v1.ppsx"
+        Dim fullPath As String: fullPath = ThisWorkbook.Path & "\" & fileName
+        Dim slideNum As Long: slideNum = Val(Target.Range.Offset(0, -1).Value)  ' Column D
+        
+        If slideNum < 1 Then Exit Sub
+        
+        On Error Resume Next
+        Set pptApp = GetObject(, "PowerPoint.Application")  ' Existing PPT instance
+        On Error GoTo 0
+        
+        If pptApp Is Nothing Then
+            Set pptApp = CreateObject("PowerPoint.Application")
+            pptApp.Visible = True
+        End If
+        
+        ' Check if this specific presentation is already open
+        Dim pres As Object
+        For Each pres In pptApp.Presentations
+            If LCase(pres.Name) = LCase(fileName) Then
+                Set pptPres = pres
+                Exit For
             End If
-        Next cell
-        Application.EnableEvents = True
+        Next
+        
+        If pptPres Is Nothing Then
+            ' Not open → open it
+            Set pptPres = pptApp.Presentations.Open(fullPath)
+        End If
+        
+        ' Activate PPT and go to slide
+        pptApp.Visible = True
+        pptApp.Activate
+        
+        If pptPres.SlideShowWindow Is Nothing Then
+            ' Start slideshow if not running
+            pptPres.SlideShowSettings.Run
+        End If
+        
+        pptPres.SlideShowWindow.View.GotoSlide slideNum
+        
+        ' Optional: Bring to front more reliably
+        AppActivate pptApp.Caption
+        
+        On Error GoTo 0
     End If
 End Sub
 
