@@ -1,32 +1,22 @@
-Sub ForceUpdateLinks()
-    Dim i As Long
-    ' This loops through your range and triggers the logic
-    For i = 3 To 500
-        ' We "re-write" the value to itself to trigger the Worksheet_Change event
-        Cells(i, "G").Value = Cells(i, "G").Value
-    Next i
-    MsgBox "Links updated! Check Column D now."
-End Sub
-
 Private Sub Worksheet_Change(ByVal Target As Range)
-    ' 1. MONITOR COLUMN G: This adds/removes the "Hand Icon"
-    If Not Intersect(Target, Range("G3:G500")) Is Nothing Then
+    ' 1. MONITOR COLUMN D: This adds/removes the "Hand Icon"
+    If Not Intersect(Target, Range("D3:D500")) Is Nothing Then
         Dim cell As Range
-        For Each cell In Intersect(Target, Range("G3:G500"))
-            Dim dCell As Range
-            Set dCell = Range("D" & cell.Row)
+        For Each cell In Intersect(Target, Range("D3:D500"))
+            Dim eCell As Range
+            Set eCell = Range("E" & cell.Row)
             
             If IsNumeric(cell.Value) And cell.Value <> "" Then
                 ' Add the link (This enables the Hand Pointer)
-                ActiveSheet.Hyperlinks.Add Anchor:=dCell, Address:="", _
-                    SubAddress:="'" & Me.Name & "'!D" & cell.Row
-                dCell.Font.Color = RGB(0, 0, 255)
-                dCell.Font.Underline = xlUnderlineStyleSingle
+                ActiveSheet.Hyperlinks.Add Anchor:=eCell, Address:="", _
+                    SubAddress:="'" & Me.Name & "'!E" & cell.Row
+                eCell.Font.Color = RGB(47, 117, 181)
+                eCell.Font.Underline = xlUnderlineStyleSingle
             Else
                 ' Remove the link (This kills the Hand Pointer)
-                dCell.Hyperlinks.Delete
-                dCell.Font.ColorIndex = xlAutomatic
-                dCell.Font.Underline = xlUnderlineStyleNone
+                eCell.Hyperlinks.Delete
+                eCell.Font.ColorIndex = xlAutomatic
+                eCell.Font.Underline = xlUnderlineStyleNone
             End If
         Next cell
     End If
@@ -34,7 +24,7 @@ End Sub
 
 Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
     ' 2. CLICK ACTION: Opens the PowerPoint to the specific slide
-    If Not Intersect(Target.Range, Range("D3:D500")) Is Nothing Then
+    If Not Intersect(Target.Range, Range("E3:E500")) Is Nothing Then
         Call OpenPowerPoint(Target.Range)
     End If
 End Sub
@@ -44,7 +34,7 @@ Sub OpenPowerPoint(TargetCell As Range)
     Dim fileName As String, fullPath As String
     Dim slideNum As Long
     
-    slideNum = CLng(TargetCell.Offset(0, 3).Value) ' Looking at G
+    slideNum = CLng(TargetCell.Offset(0, -1).Value) ' Looking at D
     fileName = "Charter Dev Form_v1.ppsx"
     fullPath = ThisWorkbook.Path & "\" & fileName
     
