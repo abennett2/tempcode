@@ -1,24 +1,31 @@
-Sub LaunchPPT_Remote()
+Sub OpenPPT_Smart()
     Dim pptApp As Object, pptPres As Object
     Dim fileName As String, fullPath As String
     Dim slideNum As Long
     
-    ' This looks at whatever file you have open and active
-    If ActiveCell.Column <> 4 Then
-        MsgBox "Please select a cell in Column D first."
-        Exit Sub
-    End If
+    ' Check if we are in Column E
+    If ActiveCell.Column <> 5 Then Exit Sub
     
-    slideNum = Val(ActiveCell.Offset(0, 3).Value) ' Column G
+    ' Slide number is now in Column D (1 column to the left)
+    slideNum = Val(ActiveCell.Offset(0, -1).Value)
+    If slideNum = 0 Then Exit Sub
+    
     fileName = "Charter Dev Form_v1.ppsx"
     fullPath = ActiveWorkbook.Path & "\" & fileName
     
     On Error Resume Next
+    ' Try to find an existing PowerPoint instance
     Set pptApp = GetObject(Class:="PowerPoint.Application")
-    If pptApp Is Nothing Then Set pptApp = CreateObject(Class:="PowerPoint.Application")
+    If pptApp Is Nothing Then
+        Set pptApp = CreateObject(Class:="PowerPoint.Application")
+    End If
     
+    ' Try to find if the specific presentation is already open
     Set pptPres = pptApp.Presentations(fileName)
-    If pptPres Is Nothing Then Set pptPres = pptApp.Presentations.Open(fullPath)
+    
+    If pptPres Is Nothing Then
+        Set pptPres = pptApp.Presentations.Open(fullPath)
+    End If
     On Error GoTo 0
     
     If Not pptPres Is Nothing Then
@@ -28,6 +35,7 @@ Sub LaunchPPT_Remote()
         Else
             pptPres.SlideShowWindow.View.GotoSlide slideNum
         End If
+        ' Bring to front
         AppActivate "PowerPoint"
     End If
 End Sub
