@@ -1,91 +1,84 @@
- 
-Private Sub Worksheet_SelectionChange(ByVal Target As Range)
-    Dim pptApp As Object, pptPres As Object
-    Dim fullPath As String, fileName As String, folderPath As String
-    Dim slideNum As Integer
-    ' 1. Only run if a SINGLE cell in range is clicked
-    If Not Intersect(Target, Range("D3:D500")) Is Nothing Then
-        If Target.Cells.Count > 1 Then Exit Sub
-        ' 2. SAFETY CHECK: Only proceed if there is a slide number
-        If Target.Offset(0, 3).Value = "" Or Not IsNumeric(Target.Offset(0, 3).Value) Then
-            Exit Sub
-        End If
-        slideNum = Val(Target.Offset(0, 3).Value)
-        folderPath = Left(ThisWorkbook.Path, InStrRev(ThisWorkbook.Path, "/") - 1)
-        fileName = "Charter Dev Form_v1.ppsx"
-        fullPath = folderPath & "/" & fileName
-        On Error Resume Next
-        Set pptApp = GetObject(Class:="PowerPoint.Application")
-        If pptApp Is Nothing Then
-            Set pptApp = CreateObject(Class:="PowerPoint.Application")
-            pptApp.Visible = True
-        End If
-        Set pptPres = pptApp.Presentations(fileName)
-        If pptPres Is Nothing Then
-            Set pptPres = pptApp.Presentations.Open(fullPath)
-        End If
-        If Not pptPres Is Nothing Then
-            ' Navigate to Slide
-            If pptPres.SlideShowWindow Is Nothing Then
-                pptPres.Slides(slideNum).Select
-            Else
-                pptPres.SlideShowWindow.View.GotoSlide slideNum
-            End If
-            ' 3. WINDOW MANAGEMENT
-            pptApp.Visible = True
-            pptApp.WindowState = 3 ' Maximized
-            AppActivate "PowerPoint"
-        End If
-        ' 4. FOCUS FIX
-        ' Instead of selecting a different cell, "deselect" and re-select
-        ' This allows the user to click the SAME cell twice if needed
-        Application.EnableEvents = False ' Prevent the code from re-triggering itself
-        Target.Offset(0, 3).Select       ' Briefly move right
-        Target.Select                    ' Move back to the "Link" cell
-        Application.EnableEvents = True
-        On Error GoTo 0
+Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
+    ' This triggers when you click the cell (and gives you the "Hand" icon)
+    If Not Intersect(Target.Range, Range("D3:D500")) Is Nothing Then
+        LaunchPowerPoint Target.Range
     End If
 End Sub
+
 Private Sub Worksheet_Change(ByVal Target As Range)
-    Dim cell As Range
+    ' Updates formatting when Column G (Slide #) or Column D (Link) changes
     Dim watchRange As Range
-    Set watchRange = Range("D3:D500")
-    ' Only run if the change happened in the slide number column
+    Set watchRange = Range("D3:G500") 
+    
     If Not Intersect(Target, watchRange) Is Nothing Then
-        ' Loop through changed cells in case you deleted/pasted multiple
-        For Each cell In Intersect(Target, watchRange)
-            ' If Column E has a number, make D blue/underlined
-            If cell.Value <> "" And IsNumeric(cell.Value) Then
-                With cell.Offset(0, -3).Font
-                    .Color = RGB(0, 0, 255) ' Bright Blue
-                    .Underline = xlUnderlineStyleSingle
-                End With
-            Else
-                ' If Column E is blank/text, force D back to standard black
-                With cell.Offset(0, -3).Font
-                    .ColorIndex = xlAutomatic
-                    .Underline = xlUnderlineStyleNone
-                End With
-            End If
-        Next cell
+        Application.EnableEvents = False
+        RefreshLinkFormatting
+        Application.EnableEvents = True
     End If
 End Sub
+
+Sub LaunchPowerPoint(ByVal Target As Range)
+    Dim pptApp As Object, pptPres As Object
+    Dim fullPath As String, fileName As String
+    Dim slideNum As Long
+    
+    ' 1. Slide # is in Column G (3 columns to the right of D)
+    If Target.Offset(0, 3).Value = "" Or Not IsNumeric(Target.Offset(0, 3).Value) Then
+        MsgBox "No valid slide number found in Column G", vbExclamation
+        Exit Sub
+    End If
+    
+    slideNum = CLng(Target.Offset(0, 3).Value)
+    fileName = "Charter Dev Form_v1.ppsx"
+    fullPath = ThisWorkbook.Path & "\" & fileName ' Simplified: Same folder
+    
+    On Error Resume Next
+    Set pptApp = GetObject(Class:="PowerPoint.Application")
+    If pptApp Is Nothing Then
+        Set pptApp = CreateObject(Class:="PowerPoint.Application")
+        pptApp.Visible = True
+    End If
+    
+    Set pptPres = pptApp.Presentations(fileName)
+    If pptPres Is Nothing Then
+        Set pptPres = pptApp.Presentations.Open(fullPath)
+    End If
+    On Error GoTo 0
+    
+    If Not pptPres Is Nothing Then
+        ' Navigate to Slide
+        If pptPres.SlideShowWindow Is Nothing Then
+            pptPres.Slides(slideNum).Select
+        Else
+            pptPres.SlideShowWindow.View.GotoSlide slideNum
+        End If
+        
+        pptApp.Visible = True
+        pptApp.WindowState = 3 ' Maximized
+        AppActivate "PowerPoint"
+    Else
+        MsgBox "Could not find the file: " & fileName, vbCritical
+    End If
+End Sub
+
 Sub RefreshLinkFormatting()
     Dim cell As Range
-    ' This scans existing slide numbers and applies the look
+    ' Scans Column D and adds/removes hyperlinks based on Column G
     For Each cell In Range("D3:D500")
-        If cell.Value <> "" And IsNumeric(cell.Value) Then
-            With cell.Offset(0, -3).Font
+        If cell.Offset(0, 3).Value <> "" And IsNumeric(cell.Offset(0, 3).Value) Then
+            ' Add a dummy hyperlink to get the Hand Pointer
+            ActiveSheet.Hyperlinks.Add Anchor:=cell, Address:="", SubAddress:=cell.Address
+            With cell.Font
                 .Color = RGB(0, 0, 255)
                 .Underline = xlUnderlineStyleSingle
             End With
         Else
-            With cell.Offset(0, -3).Font
+            ' Remove link and formatting if no slide number
+            cell.Hyperlinks.Delete
+            With cell.Font
                 .ColorIndex = xlAutomatic
                 .Underline = xlUnderlineStyleNone
             End With
         End If
     Next cell
 End Sub
- 
- 
