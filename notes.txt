@@ -1,10 +1,13 @@
 Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
+    MsgBox "Event fired! Target range: " & Target.Range.Address & vbCrLf & _
+           "SubAddress: " & Target.SubAddress
     If Not Intersect(Target.Range, Me.Range("E3:E500")) Is Nothing Then
         Dim pptApp As Object, pptPres As Object
         Dim fileName As String: fileName = "Charter Dev Form_v1.ppsx"
         Dim fullPath As String: fullPath = ThisWorkbook.Path & "\" & fileName
         Dim slideNum As Long: slideNum = Val(Target.Range.Offset(0, -1).Value)  ' Column D
-        
+        MsgBox fullPath
+
         If slideNum < 1 Then Exit Sub
         
         On Error Resume Next
