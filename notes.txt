@@ -1,3 +1,13 @@
+Sub ForceUpdateLinks()
+    Dim i As Long
+    ' This loops through your range and triggers the logic
+    For i = 3 To 500
+        ' We "re-write" the value to itself to trigger the Worksheet_Change event
+        Cells(i, "G").Value = Cells(i, "G").Value
+    Next i
+    MsgBox "Links updated! Check Column D now."
+End Sub
+
 Private Sub Worksheet_Change(ByVal Target As Range)
     ' 1. MONITOR COLUMN G: This adds/removes the "Hand Icon"
     If Not Intersect(Target, Range("G3:G500")) Is Nothing Then
