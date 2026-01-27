@@ -34,9 +34,13 @@ Sub OpenPowerPoint(TargetCell As Range)
     Dim fileName As String, fullPath As String
     Dim slideNum As Long
     
-    slideNum = CLng(TargetCell.Offset(0, -1).Value) ' Looking at D
+    If ActiveCell.Column <> 5 Then Exit Sub
+    
+    slideNum = Val(ActiveCell.Offset(0, -1).Value) ' Looking at D
+    If slideNum = 0 Then Exit Sub
+    
     fileName = "Charter Dev Form_v1.ppsx"
-    fullPath = ThisWorkbook.Path & "\" & fileName
+    fullPath = ActiveWorkbook.Path & "\" & fileName
     
     On Error Resume Next
     Set pptApp = GetObject(Class:="PowerPoint.Application")
@@ -60,3 +64,4 @@ Sub OpenPowerPoint(TargetCell As Range)
         AppActivate "PowerPoint"
     End If
 End Sub
+
