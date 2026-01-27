@@ -1,24 +1,33 @@
-Sub SyncHyperlinks()
-    ' This macro creates the "Hand Pointer" links in Column D based on Column G
-    Dim ws As Worksheet
-    Dim cell As Range
-    Set ws = ActiveSheet
+Sub LaunchPPT_Remote()
+    Dim pptApp As Object, pptPres As Object
+    Dim fileName As String, fullPath As String
+    Dim slideNum As Long
+    
+    ' This looks at whatever file you have open and active
+    If ActiveCell.Column <> 4 Then
+        MsgBox "Please select a cell in Column D first."
+        Exit Sub
+    End If
+    
+    slideNum = Val(ActiveCell.Offset(0, 3).Value) ' Column G
+    fileName = "Charter Dev Form_v1.ppsx"
+    fullPath = ActiveWorkbook.Path & "\" & fileName
     
     On Error Resume Next
-    For Each cell In ws.Range("G3:G500")
-        Dim dCell As Range
-        Set dCell = ws.Cells(cell.Row, "D")
-        
-        If IsNumeric(cell.Value) And cell.Value <> "" Then
-            ' Create a real hyperlink object to force the Hand Pointer
-            ws.Hyperlinks.Add Anchor:=dCell, Address:="", SubAddress:="'" & ws.Name & "'!D" & cell.Row
-            dCell.Font.Color = RGB(0, 0, 255)
-            dCell.Font.Underline = xlUnderlineStyleSingle
+    Set pptApp = GetObject(Class:="PowerPoint.Application")
+    If pptApp Is Nothing Then Set pptApp = CreateObject(Class:="PowerPoint.Application")
+    
+    Set pptPres = pptApp.Presentations(fileName)
+    If pptPres Is Nothing Then Set pptPres = pptApp.Presentations.Open(fullPath)
+    On Error GoTo 0
+    
+    If Not pptPres Is Nothing Then
+        pptApp.Visible = True
+        If pptPres.SlideShowWindow Is Nothing Then
+            pptPres.Slides(slideNum).Select
         Else
-            dCell.Hyperlinks.Delete
-            dCell.Font.ColorIndex = xlAutomatic
-            dCell.Font.Underline = xlUnderlineStyleNone
+            pptPres.SlideShowWindow.View.GotoSlide slideNum
         End If
-    Next cell
-    MsgBox "Hand pointers synchronized!", vbInformation
+        AppActivate "PowerPoint"
+    End If
 End Sub
