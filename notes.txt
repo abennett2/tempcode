@@ -4,13 +4,18 @@ Private Sub Worksheet_Change(ByVal Target As Range)
         Application.EnableEvents = False
         For Each cell In Intersect(Target, Range("D3:D500"))
             Dim eCell As Range: Set eCell = Me.Range("E" & cell.Row)
-            If IsNumeric(cell.Value) And cell.Value <> "" Then
-                ' This creates the hand pointer without a browser URL
+            ' Clear any existing hyperlinks and reset formatting first
+            On Error Resume Next
+            eCell.Hyperlinks.Delete
+            On Error GoTo 0
+            eCell.Font.ColorIndex = xlAutomatic
+            eCell.Font.Underline = xlUnderlineStyleNone
+            
+            If IsNumeric(cell.Value) And cell.Value > 0 Then
+                ' Add dummy hyperlink for hand cursor and event trigger
                 Me.Hyperlinks.Add Anchor:=eCell, Address:="", SubAddress:="'" & Me.Name & "'!E" & cell.Row
-                eCell.Font.Color = RGB(47, 117, 181): eCell.Font.Underline = xlUnderlineStyleSingle
-            Else
-                eCell.Hyperlinks.Delete
-                eCell.Font.ColorIndex = xlAutomatic: eCell.Font.Underline = xlUnderlineStyleNone
+                eCell.Font.Color = RGB(47, 117, 181)
+                eCell.Font.Underline = xlUnderlineStyleSingle
             End If
         Next cell
         Application.EnableEvents = True
@@ -21,20 +26,37 @@ Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
     If Not Intersect(Target.Range, Range("E3:E500")) Is Nothing Then
         Dim pptApp As Object, pptPres As Object, slideNum As Long
         Dim fileName As String: fileName = "Charter Dev Form_v1.ppsx"
+        Dim fullPath As String: fullPath = ThisWorkbook.Path & "\" & fileName
         
-        slideNum = Val(Target.Range.Offset(0, -1).Value) ' Column D
-        On Error Resume Next
+        slideNum = Val(Target.Range.Offset(0, -1).Value) ' From column D
+        If slideNum <= 0 Then Exit Sub ' Safety check
+        
+        On Error GoTo ErrorHandler
         Set pptApp = GetObject(Class:="PowerPoint.Application")
         If pptApp Is Nothing Then Set pptApp = CreateObject(Class:="PowerPoint.Application")
+        pptApp.Visible = True
         
-        ' This is the magic: find the ALREADY OPEN presentation
+        ' Try to get existing presentation
         Set pptPres = pptApp.Presentations(fileName)
-        If pptPres Is Nothing Then Set pptPres = pptApp.Presentations.Open(ThisWorkbook.Path & "\" & fileName)
-        
-        If Not pptPres Is Nothing Then
-            pptApp.Visible = True
-            If pptPres.SlideShowWindow Is Nothing Then pptPres.Slides(slideNum).Select Else pptPres.SlideShowWindow.View.GotoSlide slideNum
-            AppActivate "PowerPoint"
+        If pptPres Is Nothing Then
+            ' Open if not found (assumes synced SharePoint path)
+            Set pptPres = pptApp.Presentations.Open(fullPath)
         End If
+        
+        ' Ensure slideshow mode (for .ppsx behavior)
+        If pptPres.SlideShowWindow Is Nothing Then
+            pptPres.SlideShowSettings.Run
+        End If
+        
+        ' Navigate to slide
+        pptPres.SlideShowWindow.View.GotoSlide slideNum
+        
+        ' Bring PowerPoint to front
+        AppActivate pptApp.Caption
+        
+        Exit Sub
+        
+ErrorHandler:
+        MsgBox "Error opening or navigating PowerPoint: " & Err.Description, vbCritical
     End If
 End Sub
