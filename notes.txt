@@ -1,22 +1,16 @@
 Private Sub Worksheet_Change(ByVal Target As Range)
-    ' MONITOR COLUMN D: Adds/Removes the link object based on slide number
     If Not Intersect(Target, Range("D3:D500")) Is Nothing Then
         Dim cell As Range
-        Application.EnableEvents = False ' Prevent flicker
+        Application.EnableEvents = False
         For Each cell In Intersect(Target, Range("D3:D500"))
-            Dim eCell As Range
-            Set eCell = Me.Range("E" & cell.Row)
-            
+            Dim eCell As Range: Set eCell = Me.Range("E" & cell.Row)
             If IsNumeric(cell.Value) And cell.Value <> "" Then
-                ' Add internal link to itself to enable Hand Pointer without browser
-                Me.Hyperlinks.Add Anchor:=eCell, Address:="", _
-                    SubAddress:="'" & Me.Name & "'!E" & cell.Row
-                eCell.Font.Color = RGB(47, 117, 181)
-                eCell.Font.Underline = xlUnderlineStyleSingle
+                ' This creates the hand pointer without a browser URL
+                Me.Hyperlinks.Add Anchor:=eCell, Address:="", SubAddress:="'" & Me.Name & "'!E" & cell.Row
+                eCell.Font.Color = RGB(47, 117, 181): eCell.Font.Underline = xlUnderlineStyleSingle
             Else
                 eCell.Hyperlinks.Delete
-                eCell.Font.ColorIndex = xlAutomatic
-                eCell.Font.Underline = xlUnderlineStyleNone
+                eCell.Font.ColorIndex = xlAutomatic: eCell.Font.Underline = xlUnderlineStyleNone
             End If
         Next cell
         Application.EnableEvents = True
@@ -24,46 +18,23 @@ Private Sub Worksheet_Change(ByVal Target As Range)
 End Sub
 
 Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
-    ' This triggers the PPT launch when the link is clicked
     If Not Intersect(Target.Range, Range("E3:E500")) Is Nothing Then
-        OpenPowerPoint Target.Range
-    End If
-End Sub
-
-Sub OpenPowerPoint(TargetCell As Range)
-    Dim pptApp As Object, pptPres As Object
-    Dim fileName As String, fullPath As String
-    Dim slideNum As Long
-    
-    ' Slide number is in Column D (1 column left of TargetCell E)
-    slideNum = Val(TargetCell.Offset(0, -1).Value)
-    If slideNum = 0 Then Exit Sub
-    
-    fileName = "Charter Dev Form_v1.ppsx"
-    ' Fix for SharePoint pathing
-    fullPath = ThisWorkbook.Path & "\" & fileName
-    
-    On Error Resume Next
-    Set pptApp = GetObject(Class:="PowerPoint.Application")
-    If pptApp Is Nothing Then
-        Set pptApp = CreateObject(Class:="PowerPoint.Application")
-    End If
-    
-    ' Check if already open
-    Set pptPres = pptApp.Presentations(fileName)
-    
-    If pptPres Is Nothing Then
-        Set pptPres = pptApp.Presentations.Open(fullPath)
-    End If
-    On Error GoTo 0
-    
-    If Not pptPres Is Nothing Then
-        pptApp.Visible = True
-        If pptPres.SlideShowWindow Is Nothing Then
-            pptPres.Slides(slideNum).Select
-        Else
-            pptPres.SlideShowWindow.View.GotoSlide slideNum
+        Dim pptApp As Object, pptPres As Object, slideNum As Long
+        Dim fileName As String: fileName = "Charter Dev Form_v1.ppsx"
+        
+        slideNum = Val(Target.Range.Offset(0, -1).Value) ' Column D
+        On Error Resume Next
+        Set pptApp = GetObject(Class:="PowerPoint.Application")
+        If pptApp Is Nothing Then Set pptApp = CreateObject(Class:="PowerPoint.Application")
+        
+        ' This is the magic: find the ALREADY OPEN presentation
+        Set pptPres = pptApp.Presentations(fileName)
+        If pptPres Is Nothing Then Set pptPres = pptApp.Presentations.Open(ThisWorkbook.Path & "\" & fileName)
+        
+        If Not pptPres Is Nothing Then
+            pptApp.Visible = True
+            If pptPres.SlideShowWindow Is Nothing Then pptPres.Slides(slideNum).Select Else pptPres.SlideShowWindow.View.GotoSlide slideNum
+            AppActivate "PowerPoint"
         End If
-        AppActivate "PowerPoint"
     End If
 End Sub
