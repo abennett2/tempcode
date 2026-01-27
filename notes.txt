@@ -1,42 +1,47 @@
-Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
-    ' This triggers when you click the cell (and gives you the "Hand" icon)
-    If Not Intersect(Target.Range, Range("D3:D500")) Is Nothing Then
-        LaunchPowerPoint Target.Range
-    End If
-End Sub
-
 Private Sub Worksheet_Change(ByVal Target As Range)
-    ' Updates formatting when Column G (Slide #) or Column D (Link) changes
-    Dim watchRange As Range
-    Set watchRange = Range("D3:G500") 
-    
-    If Not Intersect(Target, watchRange) Is Nothing Then
-        Application.EnableEvents = False
-        RefreshLinkFormatting
-        Application.EnableEvents = True
+    ' 1. MONITOR COLUMN G: This adds/removes the "Hand Icon"
+    If Not Intersect(Target, Range("G3:G500")) Is Nothing Then
+        Dim cell As Range
+        For Each cell In Intersect(Target, Range("G3:G500"))
+            Dim dCell As Range
+            Set dCell = Range("D" & cell.Row)
+            
+            If IsNumeric(cell.Value) And cell.Value <> "" Then
+                ' Add the link (This enables the Hand Pointer)
+                ActiveSheet.Hyperlinks.Add Anchor:=dCell, Address:="", _
+                    SubAddress:="'" & Me.Name & "'!D" & cell.Row
+                dCell.Font.Color = RGB(0, 0, 255)
+                dCell.Font.Underline = xlUnderlineStyleSingle
+            Else
+                ' Remove the link (This kills the Hand Pointer)
+                dCell.Hyperlinks.Delete
+                dCell.Font.ColorIndex = xlAutomatic
+                dCell.Font.Underline = xlUnderlineStyleNone
+            End If
+        Next cell
     End If
 End Sub
 
-Sub LaunchPowerPoint(ByVal Target As Range)
+Private Sub Worksheet_FollowHyperlink(ByVal Target As Hyperlink)
+    ' 2. CLICK ACTION: Opens the PowerPoint to the specific slide
+    If Not Intersect(Target.Range, Range("D3:D500")) Is Nothing Then
+        Call OpenPowerPoint(Target.Range)
+    End If
+End Sub
+
+Sub OpenPowerPoint(TargetCell As Range)
     Dim pptApp As Object, pptPres As Object
-    Dim fullPath As String, fileName As String
+    Dim fileName As String, fullPath As String
     Dim slideNum As Long
     
-    ' 1. Slide # is in Column G (3 columns to the right of D)
-    If Target.Offset(0, 3).Value = "" Or Not IsNumeric(Target.Offset(0, 3).Value) Then
-        MsgBox "No valid slide number found in Column G", vbExclamation
-        Exit Sub
-    End If
-    
-    slideNum = CLng(Target.Offset(0, 3).Value)
+    slideNum = CLng(TargetCell.Offset(0, 3).Value) ' Looking at G
     fileName = "Charter Dev Form_v1.ppsx"
-    fullPath = ThisWorkbook.Path & "\" & fileName ' Simplified: Same folder
+    fullPath = ThisWorkbook.Path & "\" & fileName
     
     On Error Resume Next
     Set pptApp = GetObject(Class:="PowerPoint.Application")
     If pptApp Is Nothing Then
         Set pptApp = CreateObject(Class:="PowerPoint.Application")
-        pptApp.Visible = True
     End If
     
     Set pptPres = pptApp.Presentations(fileName)
@@ -46,39 +51,12 @@ Sub LaunchPowerPoint(ByVal Target As Range)
     On Error GoTo 0
     
     If Not pptPres Is Nothing Then
-        ' Navigate to Slide
+        pptApp.Visible = True
         If pptPres.SlideShowWindow Is Nothing Then
             pptPres.Slides(slideNum).Select
         Else
             pptPres.SlideShowWindow.View.GotoSlide slideNum
         End If
-        
-        pptApp.Visible = True
-        pptApp.WindowState = 3 ' Maximized
         AppActivate "PowerPoint"
-    Else
-        MsgBox "Could not find the file: " & fileName, vbCritical
     End If
-End Sub
-
-Sub RefreshLinkFormatting()
-    Dim cell As Range
-    ' Scans Column D and adds/removes hyperlinks based on Column G
-    For Each cell In Range("D3:D500")
-        If cell.Offset(0, 3).Value <> "" And IsNumeric(cell.Offset(0, 3).Value) Then
-            ' Add a dummy hyperlink to get the Hand Pointer
-            ActiveSheet.Hyperlinks.Add Anchor:=cell, Address:="", SubAddress:=cell.Address
-            With cell.Font
-                .Color = RGB(0, 0, 255)
-                .Underline = xlUnderlineStyleSingle
-            End With
-        Else
-            ' Remove link and formatting if no slide number
-            cell.Hyperlinks.Delete
-            With cell.Font
-                .ColorIndex = xlAutomatic
-                .Underline = xlUnderlineStyleNone
-            End With
-        End If
-    Next cell
 End Sub
