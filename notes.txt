@@ -1,3 +1,1 @@
-The specified user [{"@odata.type":"#Microsoft.Azure.Connectors.SharePoint.SPListExpandedUser","Claims":"i:0#.f|membership|cnguyen2@triwest.com","DisplayName":"Nguyen, Chuong","Email":"cnguyen2@TriWest.com","Picture":"https://triwesthcac.sharepoint.com/teams/TWContractMgmt/_layouts/15/UserPhoto.aspx?Size=L&AccountName=cnguyen2@TriWest.com","Department":"Subcontractor Admin","JobTitle":"Proposal Pricing Specialist"}] could not be found.
-clientRequestId: c30cf242-b8f6-40bf-9509-4ec104364a47
-serviceRequestId: 427df1a1-8005-b000-77c4-c867aff08599
+The 'inputs.parameters' of workflow operation 'Create_item' of type 'OpenApiConnection' is not valid. Error details: The API operation 'PostItem' requires the property 'item/Contracts_x0020_Lead' to be a string of maximum length '255' but is of length '405'.
