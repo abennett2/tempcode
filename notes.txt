@@ -1,1 +1,1 @@
-The 'inputs.parameters' of workflow operation 'Create_item' of type 'OpenApiConnection' is not valid. Error details: The API operation does not allow writing a value for parameter 'item/Pricing_x0020_Specialist[0]/DisplayName'. This parameter is read only.
+Flow save failed with code 'OpenApiOperationParameterValidationFailed' and message 'Input parameter 'item' validation failed in workflow operation 'Create_item': The parameter with value '"[{\"Claims\":}]"' in path 'item/Pricing_x0020_Specialist' with type/format 'String' is not convertible to type/format 'Array'.'.Upgrade
