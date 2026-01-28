@@ -1,1 +1,1 @@
-The 'inputs.parameters' of workflow operation 'Create_item' of type 'OpenApiConnection' is not valid. Error details: The API operation 'PostItem' requires the property 'item/Contracts_x0020_Lead' to be a string of maximum length '255' but is of length '405'.
+The 'inputs.parameters' of workflow operation 'Create_item' of type 'OpenApiConnection' is not valid. Error details: The API operation does not allow writing a value for parameter 'item/Pricing_x0020_Specialist[0]/DisplayName'. This parameter is read only.
