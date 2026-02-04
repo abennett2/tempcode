@@ -1,1 +1,3 @@
-triggerOutputs()?['body/Pricing_x0020_Specialist/Claims']
+The query cannot be completed because the number of lookup columns it contains exceeds the lookup column threshold.
+clientRequestId: b8674ef0-a225-4eca-afd6-c5f326e1e547
+serviceRequestId: 93b6f3a1-10e2-b000-b938-37ac686363f3
