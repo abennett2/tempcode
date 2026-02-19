@@ -1,3 +1,32 @@
-The query cannot be completed because the number of lookup columns it contains exceeds the lookup column threshold.
-clientRequestId: b8674ef0-a225-4eca-afd6-c5f326e1e547
-serviceRequestId: 93b6f3a1-10e2-b000-b938-37ac686363f3
+
+Scheduled workflows (daily)
+
+Milestones
+
+· Add a scheduled notification workflow to run each day checking for due dates on Milestones
+
+o PM notified when due dates are approaching (2 weeks before due date)
+
+§ One reminder if incomplete 2 weeks prior to due date
+
+§ Email i f overdue
+
+Charter - Closure Date
+
+· 2 weeks before closure date, send reminder to get validations completed (scheduled for review) – copy ePMO managers (if metrics have not been validated) ; send link to calendar to schedule (for PM) – this is a new list in Charters location.
+
+
+Automated Workflow
+
+Deliverables
+
+· Email ePMO Admin and ePMO Managers (from Logs Config) when:
+
+o A deliverable is marked as complete.
+
+o When all Milestone due dates are in the past with Deliverable list indicating if Deliverable is validated or not. Deliverables might be incomplete also. Query is based on validation checks of deliverable against milestone dates. This will require a couple of different queries to validate before sending.
+
+
+Be sure to create the flow in the ePMO solution and call the child mail request.
+
+
