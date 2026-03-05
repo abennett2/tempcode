@@ -1,3 +1,83 @@
-The query cannot be completed because the number of lookup columns it contains exceeds the lookup column threshold.
-clientRequestId: 5560f930-010c-4f0c-88be-b21389174f92
-serviceRequestId: eabefca1-200a-b000-f69f-f183616b22ed
+<!-- Remove [[ApplicationDetails]] from your template and put this in its place -->
+<div id="associated-items-print-container">
+  <p>Loading associated items...</p>
+</div>
+
+<script>
+(function() {
+  // ---- CONFIGURE THESE ----
+  var CHILD_LIST_NAME   = "YourChildListName";        // Internal name of the child list
+  var CHILD_PRINT_TEMPLATE = "Default";               // Name of the child list's print template
+  var PARENT_ID_FIELD   = "ParentItemId";             // Lookup field in child list pointing to parent
+  var SITE_URL          = _spPageContextInfo.siteAbsoluteUrl;
+  // -------------------------
+
+  // Get the current parent item ID from the URL or Infowise context
+  var parentId = GetUrlKeyValue("ID") || (window.SPUS && SPUS.ItemId);
+
+  if (!parentId) {
+    document.getElementById("associated-items-print-container").innerHTML = 
+      "<p>Could not determine parent item ID.</p>";
+    return;
+  }
+
+  // 1. Query child list for items related to this parent
+  var queryUrl = SITE_URL +
+    "/_api/web/lists/getbytitle('" + CHILD_LIST_NAME + "')/items" +
+    "?$filter=" + PARENT_ID_FIELD + "Id eq " + parentId +
+    "&$select=ID";
+
+  fetch(queryUrl, {
+    headers: { "Accept": "application/json;odata=verbose" }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var items = data.d.results;
+    if (!items.length) {
+      document.getElementById("associated-items-print-container").innerHTML = 
+        "<p>No associated items found.</p>";
+      return;
+    }
+
+    // 2. For each child item, load its print template iframe/html
+    var container = document.getElementById("associated-items-print-container");
+    container.innerHTML = "";
+
+    items.forEach(function(item) {
+      // Build the URL to the child item's print template
+      var printUrl = SITE_URL +
+        "/_layouts/15/Infowise.ULTIFORMSxx/PrintTemplate.aspx" +
+        "?List=" + encodeURIComponent(CHILD_LIST_NAME) +
+        "&ID=" + item.ID +
+        "&Template=" + encodeURIComponent(CHILD_PRINT_TEMPLATE);
+
+      // Embed each child print template in an iframe
+      var wrapper = document.createElement("div");
+      wrapper.style.marginBottom = "20px";
+
+      var iframe = document.createElement("iframe");
+      iframe.src = printUrl;
+      iframe.style.width = "100%";
+      iframe.style.border = "none";
+      iframe.scrolling = "no";
+
+      // Auto-resize iframe to content height
+      iframe.onload = function() {
+        try {
+          iframe.style.height = 
+            iframe.contentDocument.body.scrollHeight + "px";
+        } catch(e) {
+          iframe.style.height = "400px"; // fallback
+        }
+      };
+
+      wrapper.appendChild(iframe);
+      container.appendChild(wrapper);
+    });
+  })
+  .catch(function(err) {
+    document.getElementById("associated-items-print-container").innerHTML = 
+      "<p>Error loading associated items: " + err + "</p>";
+  });
+})();
+</script>
