@@ -6,7 +6,7 @@
 <script>
 (function() {
   // ---- CONFIGURE THESE ----
-  var CHILD_LIST_NAME   = "YourChildListName";        // Internal name of the child list
+  var CHILD_LIST_NAME   = "Application Details";        // Internal name of the child list
   var CHILD_PRINT_TEMPLATE = "Default";               // Name of the child list's print template
   var PARENT_ID_FIELD   = "ParentItemId";             // Lookup field in child list pointing to parent
   var SITE_URL          = _spPageContextInfo.siteAbsoluteUrl;
