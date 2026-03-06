@@ -1,5 +1,11 @@
-https://xxxxxx.sharepoint.com/teams/Facilities-DistributionServices/_api/web/lists/getbytitle('DataMatx%20Client%20Setup')?$select=Id
-
-returned:
-
-<?xml version="1.0" encoding="utf-8"?><entry xml:base="https://xxxxxx.sharepoint.com/teams/Facilities-DistributionServices/_api/" xmlns="http://www.w3.org/2005/Atom" xmlns:d="http://schemas.microsoft.com/ado/2007/08/dataservices" xmlns:m="http://schemas.microsoft.com/ado/2007/08/dataservices/metadata" xmlns:georss="http://www.georss.org/georss" xmlns:gml="http://www.opengis.net/gml" m:etag="&quot;589&quot;"><id>https://xxxxxx.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'4b67f7fa-66b1-428e-bb22-ab93ce7d81be')</id><category term="SP.List" scheme="http://schemas.microsoft.com/ado/2007/08/dataservices/scheme" /><link rel="edit" href="Web/Lists(guid'4b67f7fa-66b1-428e-bb22-ab93ce7d81be')" /><title /><updated>2026-03-06T14:40:17Z</updated><author><name /></author><content type="application/xml"><m:properties><d:Id m:type="Edm.Guid">4b67f7fa-66b1-428e-bb22-ab93ce7d81be</d:Id></m:properties></content></entry>
+fetch("https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/web/lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/RenderListDataAsStream", {
+  method: "POST",
+  headers: {
+    "Accept": "application/json;odata=verbose",
+    "Content-Type": "application/json;odata=verbose",
+    "X-RequestDigest": document.getElementById("__REQUESTDIGEST") ? document.getElementById("__REQUESTDIGEST").value : ""
+  },
+  body: JSON.stringify({ parameters: { ViewXml: "<View><Query></Query></View>" } })
+})
+.then(r => r.json())
+.then(d => console.log(JSON.stringify(d.Row ? d.Row[0] : d, null, 2)));
