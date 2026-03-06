@@ -1,11 +1,14 @@
-fetch("https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/web/lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/RenderListDataAsStream", {
-  method: "POST",
+const response = await fetch("https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/web/lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/items?$top=1", {
   headers: {
-    "Accept": "application/json;odata=verbose",
-    "Content-Type": "application/json;odata=verbose",
-    "X-RequestDigest": document.getElementById("__REQUESTDIGEST") ? document.getElementById("__REQUESTDIGEST").value : ""
-  },
-  body: JSON.stringify({ parameters: { ViewXml: "<View><Query></Query></View>" } })
-})
-.then(r => r.json())
-.then(d => console.log(JSON.stringify(d.Row ? d.Row[0] : d, null, 2)));
+    "Accept": "application/json;odata=verbose"
+  }
+});
+const text = await response.text();
+console.log(text);
+
+const response = await fetch("https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/web/lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/items?$top=1", {
+  headers: {
+    "Accept": "application/json;odata=verbose"
+  }
+});
+console.log(response.status, response.statusText);
