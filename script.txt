@@ -1,2 +1,77 @@
-{"d":{"results":[{"__metadata":{"id":"272b52ab-fcf9-43c1-bb43-ca960f94c477","uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)","etag":"\"1\"","type":"SP.Data.Application_x0020_DetailsListItem"},"FirstUniqueAncestorSecurableObject":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/FirstUniqueAncestorSecurableObject"}},"RoleAssignments":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/RoleAssignments"}},"AttachmentFiles":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/AttachmentFiles"}},"ContentType":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/ContentType"}},"GetDlpPolicyTip":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/GetDlpPolicyTip"}},"FieldValuesAsHtml":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/FieldValuesAsHtml"}},"FieldValuesAsText":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/FieldValuesAsText"}},"FieldValuesForEdit":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/FieldValuesForEdit"}},"File":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/File"}},"Folder":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/Folder"}},"LikedByInformation":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/LikedByInformation"}},"ParentList":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/ParentList"}},"Properties":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/Properties"}},"Versions":{"__deferred":{"uri":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/Web/Lists(guid'cc4d9f45-eaf3-4168-993d-9344daa7e850')/Items(4)/Versions"}},"FileSystemObjectType":0,"Id":4,"ServerRedirectedEmbedUri":null,"ServerRedirectedEmbedUrl":"","ContentTypeId":"0x01008C2EF53E4608684CBBDA19833803DA340016E565D28245384190450F68A2BD0AFB","Title":null,"OData__ColorTag":null,"ComplianceAssetId":null,"A1_x002d_Client_x0020_Name":"Google Docs","B1_x002d_Business_x0020_Unit":"25K","field_4":"Full Color","field_5":"Duplex (Variable)","field_6":"Variable","Go_x0020_Live_x0020_Date_x0020__":"2026-03-26T07:00:00Z","Frequency_x0020__x0028_K4_x0029_":"Weekly","Media_x0020_Type_x0020__x0028_K7":"Print and Mail","Est_x002e__x0020_Volume_x0020__x":"3-5","Est_x002e__x0020_Volume_x0020__x0":">20k","Paper_x0020_Type_x0020__x0028_M4":"Custom","Perf_x0020_Size_x0020__x0028_M4a":"3.5 inch","Env_x0020_Outer_x0020__x0028_M5_":"Large Face Window #10","Env_x0020_Return_x0020__x0028_M6":"Standard #9","Inserts_x0020__x0028_M7_x0029_":"Yes (Offline)","Insert_x0020_Type_x0020__x0028_M":"Big ones","Proof_x0020_of_x0020_Mail_x0020_":"Yes - Electronic POM","Test_x0020_File_x0020_Status_x00":"Yes","File_x0020_Layout_x0020__x0028_P":"Yes","Font_x0020_Reqs_x0020__x0028_P4_":"Arial","OCRMICR_x0020__x0028_P6_x0029_":"Nah","Scanline_x0020_Test_x0020__x0028":null,"Messages_x0020__x0028_P7_x0029_":"No","File_x0020_Format_x0020__x0028_S":"Yes","Software_x0020_Used_x0020__x0028":"Crystal Reports","Cant_x0020_Transmit_x0020__x0028":null,"Transmission_x0020__x0028_S3_x00":"FTP","Encryption_x0020__x0028_S4_x0029":"no","Delivery_x0020_Sched_x0020__x002":"gegregregre","Householding_x0020__x0028_H1_x00":"Yes","Ancillary":"Yes","BizLogic_x0020__x0028_H1a_x0029_":"Yes","Handle_x0020_Move_x0020__x0028_H":"100% Mail All (Full Rate)","Handle_x0020_Bad_x0020__x0028_H4":"100% Mail All","Receive_x0020_Reports_x0020__x00":"Email","Handle_x0020_Update_x0020__x0028":"Do not make any changes to the address. Preserve entire address as received. (Must mail at Full First Class Rate/No discount)","Special_x0020_Reqs_x0020__x0028_":"regregre","Acknowledgement_x0020_Emails_x00":"rgergre","Custom_x0020_Reporting_x0020__x0":"Yes","Provide_x0020_Control_x0020__x00":"Yes","Data_x0020_Validations_x0020__x0":null,"Suppressed_x0020__x0028_V5_x0029":"No","Zero_x0020_Balance_x0020__x0028_":null,"Reported_x0020__x0028_V5b_x0029_":null,"Handle_x0020_Suppressed_x0020__x":"Print and return to client","Utilize_x0020_eTRAX_x0020__x0028":"Yes","Initial_x0020_Setup_x0020_Ppl_x0":"regre","Use_x0020_eView_x0020__x0028_T2_":"Yes","Search_x0020_Criteria_x0020__x00":"regeger","Use_x0020_eApprove_x0020__x0028_":"Yes","Initially_x0020__x0028_T3a_x0029":"Initially","Entire_x0020_File_x0020__x0028_T":"Entire File","eApprove_x0020_Notify_x0020__x00":"Yes","Additional_x0020_Reminders_x0020":"Yes","Large_x0020_Page_x0020_Vol_x0020":null,"IWParentLink":null,"AuthorId":148,"Created":"2026-03-05T15:59:12Z","Project_x0020_Name_x0020__x0028_Id":null,"ParentIDId":null,"ID":4,"Modified":"2026-03-05T15:59:12Z","EditorId":148,"OData__UIVersionString":"1.0","Attachments":false,"GUID":"6b64b4fd-7fa6-4afd-905d-9715b95c6328"}],"__next":"https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices/_api/web/lists(guid%27cc4d9f45-eaf3-4168-993d-9344daa7e850%27)/items?%24skiptoken=Paged%3dTRUE%26p_ID%3d4&%24top=1"}}
-undefined
+<!-- Replace [[ApplicationDetails]] with this -->
+<div id="associated-items-print-container">
+  <p>Loading associated items...</p>
+</div>
+
+<script>
+(function() {
+  var SITE_URL = "https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices";
+  var CHILD_LIST_GUID = "cc4d9f45-eaf3-4168-993d-9344daa7e850";
+  var CHILD_PRINT_TEMPLATE = "Default";
+  var CHILD_LIST_NAME = "Application Details";
+
+  // Get parent item ID from the URL
+  var parentId = GetUrlKeyValue("ID");
+
+  if (!parentId) {
+    document.getElementById("associated-items-print-container").innerHTML =
+      "<p>Could not determine parent item ID.</p>";
+    return;
+  }
+
+  // Query child items linked to this parent
+  var queryUrl = SITE_URL +
+    "/_api/web/lists(guid'" + CHILD_LIST_GUID + "')/items" +
+    "?$filter=ParentIDId eq " + parentId +
+    "&$select=ID";
+
+  fetch(queryUrl, {
+    headers: { "Accept": "application/json;odata=verbose" }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    var items = data.d.results;
+    var container = document.getElementById("associated-items-print-container");
+
+    if (!items.length) {
+      container.innerHTML = "<p>No associated items found.</p>";
+      return;
+    }
+
+    container.innerHTML = "";
+
+    items.forEach(function(item) {
+      // Build URL to child item's Default print template
+      var printUrl = SITE_URL +
+        "/_layouts/15/Infowise.ULTIFORMSxx/PrintTemplate.aspx" +
+        "?List=" + encodeURIComponent(CHILD_LIST_NAME) +
+        "&ID=" + item.ID +
+        "&Template=" + encodeURIComponent(CHILD_PRINT_TEMPLATE);
+
+      var wrapper = document.createElement("div");
+      wrapper.style.marginBottom = "20px";
+
+      var iframe = document.createElement("iframe");
+      iframe.src = printUrl;
+      iframe.style.width = "100%";
+      iframe.style.border = "none";
+      iframe.scrolling = "no";
+      iframe.onload = function() {
+        try {
+          iframe.style.height =
+            iframe.contentDocument.body.scrollHeight + "px";
+        } catch(e) {
+          iframe.style.height = "400px";
+        }
+      };
+
+      wrapper.appendChild(iframe);
+      container.appendChild(wrapper);
+    });
+  })
+  .catch(function(err) {
+    document.getElementById("associated-items-print-container").innerHTML =
+      "<p>Error loading associated items: " + err + "</p>";
+  });
+})();
+</script>
