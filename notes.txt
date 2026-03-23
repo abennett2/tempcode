@@ -1,83 +1,54 @@
-<!-- Remove [[ApplicationDetails]] from your template and put this in its place -->
-<div id="associated-items-print-container">
-  <p>Loading associated items...</p>
-</div>
+/* ── Infowise table layout framework ──────────────────────── */
 
-<script>
-(function() {
-  // ---- CONFIGURE THESE ----
-  var CHILD_LIST_NAME   = "Application Details";        // Internal name of the child list
-  var CHILD_PRINT_TEMPLATE = "Default";               // Name of the child list's print template
-  var PARENT_ID_FIELD   = "ParentItemId";             // Lookup field in child list pointing to parent
-  var SITE_URL          = _spPageContextInfo.siteAbsoluteUrl;
-  // -------------------------
+/* Row containers — apply .iw-row to every row container */
+.iw-row {
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100% !important;
+  border-bottom: 1px solid #cccccc;
+  box-sizing: border-box;
+}
 
-  // Get the current parent item ID from the URL or Infowise context
-  var parentId = GetUrlKeyValue("ID") || (window.SPUS && SPUS.ItemId);
+/* Header row — apply .iw-row-header to your header row container */
+.iw-row-header {
+  background-color: #f0f0f0;
+  font-weight: 600;
+  border-bottom: 2px solid #999999;
+}
 
-  if (!parentId) {
-    document.getElementById("associated-items-print-container").innerHTML = 
-      "<p>Could not determine parent item ID.</p>";
-    return;
-  }
+/* Cell containers — apply one class to each nested container */
+.iw-col-1  { flex: 0 0 5%  !important; width: 5%  !important; }
+.iw-col-2  { flex: 0 0 5%  !important; width: 5%  !important; }
+.iw-col-3  { flex: 0 0 50% !important; width: 50% !important; }
+.iw-col-4  { flex: 0 0 5%  !important; width: 5%  !important; }
+.iw-col-5  { flex: 0 0 5%  !important; width: 5%  !important; }
+.iw-col-6  { flex: 0 0 30% !important; width: 30% !important; }
 
-  // 1. Query child list for items related to this parent
-  var queryUrl = SITE_URL +
-    "/_api/web/lists/getbytitle('" + CHILD_LIST_NAME + "')/items" +
-    "?$filter=" + PARENT_ID_FIELD + "Id eq " + parentId +
-    "&$select=ID";
+/* Cell padding and border */
+.iw-col-1, .iw-col-2, .iw-col-3,
+.iw-col-4, .iw-col-5, .iw-col-6 {
+  padding: 6px 8px !important;
+  border-right: 1px solid #cccccc;
+  box-sizing: border-box !important;
+  overflow: hidden;
+}
 
-  fetch(queryUrl, {
-    headers: { "Accept": "application/json;odata=verbose" }
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    var items = data.d.results;
-    if (!items.length) {
-      document.getElementById("associated-items-print-container").innerHTML = 
-        "<p>No associated items found.</p>";
-      return;
-    }
+/* Remove right border from last column */
+.iw-col-6 {
+  border-right: none !important;
+}
 
-    // 2. For each child item, load its print template iframe/html
-    var container = document.getElementById("associated-items-print-container");
-    container.innerHTML = "";
+/* Outer table border — apply .iw-table to your outermost container */
+.iw-table {
+  border: 1.5px solid #999999 !important;
+  border-radius: 4px;
+  overflow: hidden;
+  width: 100% !important;
+}
 
-    items.forEach(function(item) {
-      // Build the URL to the child item's print template
-      var printUrl = SITE_URL +
-        "/_layouts/15/Infowise.ULTIFORMSxx/PrintTemplate.aspx" +
-        "?List=" + encodeURIComponent(CHILD_LIST_NAME) +
-        "&ID=" + item.ID +
-        "&Template=" + encodeURIComponent(CHILD_PRINT_TEMPLATE);
+/* Remove bottom border from last row — apply .iw-row-last to final row */
+.iw-row-last {
+  border-bottom: none !important;
+}
 
-      // Embed each child print template in an iframe
-      var wrapper = document.createElement("div");
-      wrapper.style.marginBottom = "20px";
-
-      var iframe = document.createElement("iframe");
-      iframe.src = printUrl;
-      iframe.style.width = "100%";
-      iframe.style.border = "none";
-      iframe.scrolling = "no";
-
-      // Auto-resize iframe to content height
-      iframe.onload = function() {
-        try {
-          iframe.style.height = 
-            iframe.contentDocument.body.scrollHeight + "px";
-        } catch(e) {
-          iframe.style.height = "400px"; // fallback
-        }
-      };
-
-      wrapper.appendChild(iframe);
-      container.appendChild(wrapper);
-    });
-  })
-  .catch(function(err) {
-    document.getElementById("associated-items-print-container").innerHTML = 
-      "<p>Error loading associated items: " + err + "</p>";
-  });
-})();
-</script>
+/* ── End of framework ──────────────────────────────────────── */
