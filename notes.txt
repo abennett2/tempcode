@@ -1,65 +1,56 @@
-1. Trigger and Configuration
-The flow needs to run once every 24 hours.
+1. Trigger and Date Calculation
+Step: Recurrence (Daily)
 
-Step: Recurrence (Schedule)
-
-Interval: 1
-
-Frequency: Day
-
-Step: Initialize variable
-
-Name: TargetDate
-
-Type: String
+Step: Initialize variable (TargetDate)
 
 Value: addDays(utcNow(), -7, 'yyyy-MM-dd')
 
-This calculation finds the exact date from 7 days ago to compare against the "Created" field.
-
-2. Retrieve Relevant Items
-Instead of getting all items and using a "Condition" step (which is slow), we filter the data at the source.
+2. Get and Filter Phase 2 Items
+We pull all items that are 7 days old and stuck in Phase 2.
 
 Step: Get items (SharePoint)
 
-Site Address: [Your Site URL]
+Filter Query: Created ge '@{variables('TargetDate')}T00:00:00Z' and Created le '@{variables('TargetDate')}T23:59:59Z' and Phase eq 'Phase 2' and (Status eq 'In Review' or Status eq 'Waiting on Update')
 
-List Name: Policy Draft Review
+3. Extract Unique Reviewers
+Even though you mentioned the reviewers are the same across records, some records might have different people in the "ReviewedBy" column. We need a clean list of people who still have work to do.
 
-Filter Query: Created ge '@{variables('TargetDate')}T00:00:00Z' and Created le '@{variables('TargetDate')}T23:59:59Z' and Phase eq 'Phase 1' and (Status eq 'In Review' or Status eq 'Waiting on Update')
+Step: Initialize variable (ReviewerArray)
 
-Top Count: (Optional) Set to 5000 if you have a massive list.
+Type: Array
 
-3. Process Results and Call Child Flow
-Power Automate will automatically wrap these steps in an Apply to each loop when you reference the dynamic content from the previous step.
+Value: [] (Empty)
 
-Step: Apply to each
+Step: Apply to each (Iterate through the Get items results)
 
-Select an output from previous steps: value (from Get items)
+Action Inside: Append to array variable (ReviewerArray)
+
+Value: The Reviewers dynamic content from SharePoint.
+
+Step: Compose (UniqueReviewers)
+
+Inputs: union(variables('ReviewerArray'), variables('ReviewerArray'))
+
+The union() function with itself is a clever "Power Automate hack" to remove all duplicate entries from an array.
+
+4. Notify Each Reviewer
+Now we loop through the unique list of people and send them their specific link.
+
+Step: Apply to each (EachUniqueReviewer)
+
+Select an output: Output of the UniqueReviewers Compose step.
 
 Inside the Loop:
-Since your Reviewers and Owners fields are likely "Person" columns (allowing multiple selections), we need to extract their emails into a string.
+We need to check if this specific reviewer has already reviewed all the documents. If their name is in the "ReviewedBy" column for a specific record, they don't need a reminder for that record. However, your requirement is a single email pointing to their "My Active Items" view.
 
-Step: Select (Data Operations)
+Step: Send an email (V2)
 
-From: Reviewers (Dynamic Content)
+To: Items('EachUniqueReviewer')?['Email']
 
-Map: Enter Email on the right side and select the Reviewer Email dynamic content.
+Subject: Action Required: Phase 2 Policy Draft Reviews
 
-Step: Join (Data Operations)
+Body: > "Hello,
 
-From: Output of the Select step above.
+You have pending Phase 2 Policy reviews that reached the 7-day mark today. Please visit your personalized dashboard to complete these:
 
-Join with: ; (Semicolon)
-
-Repeat the Select and Join steps for the Owners field.
-
-Step: Run a Child Flow (Flow)
-
-Child Flow: [Select your Email Reminder Flow]
-
-Parameters: * Pass the Joined Reviewer Emails
-
-Pass the Joined Owner Emails
-
-Pass the Policy Title/ID (so the email knows which item it's for)
+[Link to SharePoint View]"
