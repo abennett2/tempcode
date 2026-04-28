@@ -1,54 +1,65 @@
-/* ── Infowise table layout framework ──────────────────────── */
+1. Trigger and Configuration
+The flow needs to run once every 24 hours.
 
-/* Row containers — apply .iw-row to every row container */
-.iw-row {
-  display: flex !important;
-  flex-direction: row !important;
-  width: 100% !important;
-  border-bottom: 1px solid #cccccc;
-  box-sizing: border-box;
-}
+Step: Recurrence (Schedule)
 
-/* Header row — apply .iw-row-header to your header row container */
-.iw-row-header {
-  background-color: #f0f0f0;
-  font-weight: 600;
-  border-bottom: 2px solid #999999;
-}
+Interval: 1
 
-/* Cell containers — apply one class to each nested container */
-.iw-col-1  { flex: 0 0 5%  !important; width: 5%  !important; }
-.iw-col-2  { flex: 0 0 5%  !important; width: 5%  !important; }
-.iw-col-3  { flex: 0 0 50% !important; width: 50% !important; }
-.iw-col-4  { flex: 0 0 5%  !important; width: 5%  !important; }
-.iw-col-5  { flex: 0 0 5%  !important; width: 5%  !important; }
-.iw-col-6  { flex: 0 0 30% !important; width: 30% !important; }
+Frequency: Day
 
-/* Cell padding and border */
-.iw-col-1, .iw-col-2, .iw-col-3,
-.iw-col-4, .iw-col-5, .iw-col-6 {
-  padding: 6px 8px !important;
-  border-right: 1px solid #cccccc;
-  box-sizing: border-box !important;
-  overflow: hidden;
-}
+Step: Initialize variable
 
-/* Remove right border from last column */
-.iw-col-6 {
-  border-right: none !important;
-}
+Name: TargetDate
 
-/* Outer table border — apply .iw-table to your outermost container */
-.iw-table {
-  border: 1.5px solid #999999 !important;
-  border-radius: 4px;
-  overflow: hidden;
-  width: 100% !important;
-}
+Type: String
 
-/* Remove bottom border from last row — apply .iw-row-last to final row */
-.iw-row-last {
-  border-bottom: none !important;
-}
+Value: addDays(utcNow(), -7, 'yyyy-MM-dd')
 
-/* ── End of framework ──────────────────────────────────────── */
+This calculation finds the exact date from 7 days ago to compare against the "Created" field.
+
+2. Retrieve Relevant Items
+Instead of getting all items and using a "Condition" step (which is slow), we filter the data at the source.
+
+Step: Get items (SharePoint)
+
+Site Address: [Your Site URL]
+
+List Name: Policy Draft Review
+
+Filter Query: Created ge '@{variables('TargetDate')}T00:00:00Z' and Created le '@{variables('TargetDate')}T23:59:59Z' and Phase eq 'Phase 1' and (Status eq 'In Review' or Status eq 'Waiting on Update')
+
+Top Count: (Optional) Set to 5000 if you have a massive list.
+
+3. Process Results and Call Child Flow
+Power Automate will automatically wrap these steps in an Apply to each loop when you reference the dynamic content from the previous step.
+
+Step: Apply to each
+
+Select an output from previous steps: value (from Get items)
+
+Inside the Loop:
+Since your Reviewers and Owners fields are likely "Person" columns (allowing multiple selections), we need to extract their emails into a string.
+
+Step: Select (Data Operations)
+
+From: Reviewers (Dynamic Content)
+
+Map: Enter Email on the right side and select the Reviewer Email dynamic content.
+
+Step: Join (Data Operations)
+
+From: Output of the Select step above.
+
+Join with: ; (Semicolon)
+
+Repeat the Select and Join steps for the Owners field.
+
+Step: Run a Child Flow (Flow)
+
+Child Flow: [Select your Email Reminder Flow]
+
+Parameters: * Pass the Joined Reviewer Emails
+
+Pass the Joined Owner Emails
+
+Pass the Policy Title/ID (so the email knows which item it's for)
