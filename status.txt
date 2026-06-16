@@ -7,3 +7,12 @@
     data-author="{{slot item @root.slots.Author}}" data-profile-image="/_layouts/15/userphoto.aspx?size=L&username={{slot item @root.slots.UserEmail}}" data-file-extension="{{slot item @root.slots.FileType}}" data-enable-preview="true" data-is-container="{{slot item @root.slots.IsContainer}}"
     data-show-file-icon="true" data-theme-variant="{{JSONstringify @root.theme}}">
 </pnp-documentcard>
+
+
+<pnp-documentcard class="template--card" 
+    ... (keep all your existing code here) ...
+    data-department="{{RefinableString10}}" 
+    data-change-type="{{RefinableString11}}" 
+    data-publish-date="{{RefinableDate01}}"
+    data-theme-variant="{{JSONstringify @root.theme}}">
+</pnp-documentcard>
