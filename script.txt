@@ -123,12 +123,32 @@
                         </a>
                         
                         <div class="custom-summary-text custom-highlight-container">
-                            {{{item.HitHighlightedSummary}}}
+                            {{#if item.HitHighlightedSummary}}
+                                {{{item.HitHighlightedSummary}}}
+                            {{else if (slot item @root.slots.Summary)}}
+                                {{getSummary (slot item @root.slots.Summary)}}
+                            {{else if item.Summary}}
+                                {{getSummary item.Summary}}
+                            {{/if}}
                         </div>
                         
-                        {{#unless item.HitHighlightedSummary}}
-                            <div class="custom-summary-text">{{item.Description}}</div>
-                        {{/unless}}
+                        <div class="example-themePrimary">
+                            {{#if (slot item @root.slots.Tags)}}
+                                {{#if @root.properties.dataSourceProperties.enableLocalization}}
+                                    {{#each (split (slot item @root.slots.Tags) "ǂǂ") as |tag| }}
+                                        <div class="simpletags">{{trim tag}}</div>        
+                                    {{/each}}
+                                {{else}}    
+                                    {{#if (regex "L0\\|#" (slot item @root.slots.Tags))}}
+                                        {{#each (split (slot item @root.slots.Tags) ";") as |tag| }}
+                                            <div class="simpletags">{{getTagName (trim tag)}}</div>
+                                        {{/each}}
+                                    {{else}}
+                                        <div class="simpletags">{{trim (slot item @root.slots.Tags)}}</div>
+                                    {{/if}}
+                                {{/if}}
+                            {{/if}}
+                        </div>
                     </div>
                     
                     <div class="custom-preview-box">
