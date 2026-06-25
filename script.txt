@@ -1,77 +1,151 @@
-<!-- Replace [[ApplicationDetails]] with this -->
-<div id="associated-items-print-container">
-  <p>Loading associated items...</p>
-</div>
+<content id="data-content">
 
-<script>
-(function() {
-  var SITE_URL = "https://triwesthcac.sharepoint.com/teams/Facilities-DistributionServices";
-  var CHILD_LIST_GUID = "cc4d9f45-eaf3-4168-993d-9344daa7e850";
-  var CHILD_PRINT_TEMPLATE = "Default";
-  var CHILD_LIST_NAME = "Application Details";
+<style>
 
-  // Get parent item ID from the URL
-  var parentId = GetUrlKeyValue("ID");
-
-  if (!parentId) {
-    document.getElementById("associated-items-print-container").innerHTML =
-      "<p>Could not determine parent item ID.</p>";
-    return;
-  }
-
-  // Query child items linked to this parent
-  var queryUrl = SITE_URL +
-    "/_api/web/lists(guid'" + CHILD_LIST_GUID + "')/items" +
-    "?$filter=ParentIDId eq " + parentId +
-    "&$select=ID";
-
-  fetch(queryUrl, {
-    headers: { "Accept": "application/json;odata=verbose" }
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(data) {
-    var items = data.d.results;
-    var container = document.getElementById("associated-items-print-container");
-
-    if (!items.length) {
-      container.innerHTML = "<p>No associated items found.</p>";
-      return;
+    .template--card {
+        flex-grow: 1;
+        flex-shrink: 1;
+        min-width: 206px;
+        flex-basis: {{@root.properties.layoutProperties.columnSizePercentage}}%;
+    }
+    .template--cardContainer {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
     }
 
-    container.innerHTML = "";
+    /* MAIN CARD CONTAINER */
+    .card-box {
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        height: 100px;  /* FIXED HEIGHT to match blue card */
+        background: white;
+        border-radius: 4px;
+        padding: 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.12);  /* subtle drop shadow */
+    }
 
-    items.forEach(function(item) {
-      // Build URL to child item's Default print template
-      var printUrl = SITE_URL +
-        "/_layouts/15/Infowise.ULTIFORMSxx/PrintTemplate.aspx" +
-        "?List=" + encodeURIComponent(CHILD_LIST_NAME) +
-        "&ID=" + item.ID +
-        "&Template=" + encodeURIComponent(CHILD_PRINT_TEMPLATE);
+    /* LEFT: PREVIEW */
+    .card-left {
+        width: 100px;
+        height: 100%;
+        position: relative;
+        border-radius: 4px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
 
-      var wrapper = document.createElement("div");
-      wrapper.style.marginBottom = "20px";
+    .card-left img.preview {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
 
-      var iframe = document.createElement("iframe");
-      iframe.src = printUrl;
-      iframe.style.width = "100%";
-      iframe.style.border = "none";
-      iframe.scrolling = "no";
-      iframe.onload = function() {
-        try {
-          iframe.style.height =
-            iframe.contentDocument.body.scrollHeight + "px";
-        } catch(e) {
-          iframe.style.height = "400px";
-        }
-      };
+    /* FILETYPE ICON */
+    .card-left img.filetype-icon {
+        position: absolute;
+        bottom: 6px;
+        left: 6px;
+        width: 26px;
+        height: 26px;
+    }
 
-      wrapper.appendChild(iframe);
-      container.appendChild(wrapper);
-    });
-  })
-  .catch(function(err) {
-    document.getElementById("associated-items-print-container").innerHTML =
-      "<p>Error loading associated items: " + err + "</p>";
-  });
-})();
-</script>
+    /* RIGHT: TITLE AREA */
+    .card-right {
+        flex: 1;
+        background: #f3f3f3;  /* Correct gray background */
+        padding: 10px;
+        border-radius: 4px;
+        display: flex;
+        align-items: top;
+    }
+
+    .card-right a {
+        font-size: 13px !important;  /* Correct title size */
+        font-weight: 600;
+        color: #000 !important;
+        text-decoration: none !important;
+        line-height: 1.25;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+</style>
+
+{{#if @root.properties.showSelectedFilters}}
+    <pnp-selectedfilters
+        data-filters="{{JSONstringify filters.selectedFilters 2}}"
+        data-filters-configuration="{{JSONstringify filters.filtersConfiguration 2}}"
+        data-instance-id="{{filters.instanceId}}"
+        data-operator="{{filters.filterOperator}}"
+        data-theme-variant="{{JSONstringify @root.theme}}"
+    ></pnp-selectedfilters>
+{{/if}}
+
+<div class="template--header">
+    {{#if @root.properties.showResultsCount}}
+        <div class="template--resultCount">
+            <label class="ms-fontWeight-semibold">{{getCountMessage @root.data.totalItemsCount @root.inputQueryText}}</label>
+        </div>
+    {{/if}}
+
+    <div class="template--sort">
+        <pnp-sortfield
+            data-fields="{{JSONstringify @root.properties.dataSourceProperties.sortList}}"
+            data-default-selected-field="{{sort.selectedSortFieldName}}"
+            data-default-direction="{{sort.selectedSortDirection}}"
+            data-theme-variant="{{JSONstringify @root.theme}}">
+        </pnp-sortfield>
+    </div>
+</div>
+
+<div class="template--cardContainer">
+    {{#each data.items as |item|}}
+    <div class="template--card">
+        <div class="card-box">
+            <div class="card-left">
+                <!-- PREVIEW IMAGE -->
+                <img class="preview"
+                    src="{{#if (slot item @root.slots.PreviewImageUrl)}}
+                            {{slot item @root.slots.PreviewImageUrl}}
+                        {{else if (slot item @root.slots.ServerRedirectedPreviewURL)}}
+                            {{slot item @root.slots.ServerRedirectedPreviewURL}}
+                        {{/if}}"
+                    alt="preview">
+                    {{slot item @root.slots.FileType}}
+            </div>
+            <div class="card-right">
+                <a href="{{slot item @root.slots.PreviewUrl}}">
+                    {{slot item @root.slots.Title}}
+                </a>
+            </div>
+        </div>
+    </div>
+    {{/each}}
+</div>
+
+<div class="pagination-container">
+    {{#if @root.properties.paging.showPaging}}
+        {{#gt @root.data.totalItemsCount @root.properties.paging.itemsCountPerPage}}
+            <pnp-pagination 
+                data-total-items="{{@root.data.totalItemsCount}}" 
+                data-hide-first-last-pages="{{@root.properties.paging.hideFirstLastPages}}"
+                data-hide-disabled="{{@root.properties.paging.hideDisabled}}"
+                data-hide-navigation="{{@root.properties.paging.hideNavigation}}"
+                data-range="{{@root.properties.paging.pagingRange}}" 
+                data-items-count-per-page="{{@root.properties.paging.itemsCountPerPage}}" 
+                data-current-page-number="{{@root.paging.currentPageNumber}}"
+                data-theme-variant="{{JSONstringify @root.theme}}"
+            >
+            </pnp-pagination>
+        {{/gt}}
+    {{/if}}
+</div>
+
+</content>
