@@ -1,9 +1,7 @@
 <content id="data-content">
 
     <style>
-        /* ==================================================================== */
-        /* CLEAN, INDEPENDENT LIST LAYOUT (SharePoint cannot override this)     */
-        /* ==================================================================== */
+        /* CLEAN, INDEPENDENT LIST LAYOUT */
         .custom-list-container {
             list-style-type: none;
             padding: 0;
@@ -44,7 +42,7 @@
             line-height: 1.4;
         }
 
-        /* FORCED VISIBILITY FOR THUMBNAIL BOX */
+        /* FORCED VISIBILITY FOR VISUAL PREVIEWS */
         .custom-preview-box {
             width: 120px !important;
             height: 70px !important;
@@ -63,15 +61,14 @@
             display: block !important;
         }
 
-        /* ==================================================================== */
-        /* BULLETPROOF HIGHLIGHT STYLING                                        */
-        /* ==================================================================== */
+        /* HIGHLIGHT MARKER STYLING */
         .custom-highlight-container strong,
         .custom-highlight-container mark,
+        .custom-highlight-container j0,
         .custom-highlight-container c0,
         .custom-highlight-container c1,
         .custom-highlight-container c2 {
-            background-color: #fff2a3 !important; /* Soft yellow marker */
+            background-color: #fff2a3 !important; /* Soft yellow highlighter */
             color: #000000 !important;
             font-weight: bold !important;
             padding: 0 2px !important;
@@ -121,39 +118,27 @@
                 <li class="custom-list-row">
                     
                     <div class="custom-text-area">
-                        <a class="custom-title-link" href="{{slot item @root.slots.PreviewUrl}}" target="_blank" style="color:{{@root.theme.semanticColors.link}}" data-interception="off" rel="noopener noreferrer">
-                            {{slot item @root.slots.Title}}
+                        <a class="custom-title-link" href="{{#if item.ServerRedirectedEmbedURL}}{{item.ServerRedirectedEmbedURL}}{{else}}{{item.Path}}{{/if}}" target="_blank" style="color:{{@root.theme.semanticColors.link}}" data-interception="off" rel="noopener noreferrer">
+                            {{#if item.Title}}{{item.Title}}{{else}}Untitled Document{{/if}}
                         </a>
                         
                         <div class="custom-summary-text custom-highlight-container">
                             {{{item.HitHighlightedSummary}}}
                         </div>
                         
-                        <div class="example-themePrimary">
-                            {{#if (slot item @root.slots.Tags)}}
-                                {{#if @root.properties.dataSourceProperties.enableLocalization}}
-                                    {{#each (split (slot item @root.slots.Tags) "ǂǂ") as |tag| }}
-                                        <div class="simpletags">{{trim tag}}</div>        
-                                    {{/each}}
-                                {{else}}    
-                                    {{#if (regex "L0\\|#" (slot item @root.slots.Tags))}}
-                                        {{#each (split (slot item @root.slots.Tags) ";") as |tag| }}
-                                            <div class="simpletags">{{getTagName (trim tag)}}</div>
-                                        {{/each}}
-                                    {{else}}
-                                        <div class="simpletags">{{trim (slot item @root.slots.Tags)}}</div>
-                                    {{/if}}
-                                {{/if}}
-                            {{/if}}
-                        </div>
+                        {{#unless item.HitHighlightedSummary}}
+                            <div class="custom-summary-text">{{item.Description}}</div>
+                        {{/unless}}
                     </div>
                     
                     <div class="custom-preview-box">
                         <img alt="preview" 
-                             src="{{#if (slot item @root.slots.PreviewImageUrl)}}
-                                    {{slot item @root.slots.PreviewImageUrl}}
-                                  {{else if (slot item @root.slots.ServerRedirectedPreviewURL)}}
-                                    {{slot item @root.slots.ServerRedirectedPreviewURL}}
+                             src="{{#if item.PictureThumbnailURL}}
+                                    {{item.PictureThumbnailURL}}
+                                  {{else if item.ServerRedirectedPreviewURL}}
+                                    {{item.ServerRedirectedPreviewURL}}
+                                  {{else if item.AutoPreviewImageUrl}}
+                                    {{item.AutoPreviewImageUrl}}
                                   {{else}}
                                     https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/assets/brand-icons/document/svg/docx_16x1.svg
                                   {{/if}}" 
