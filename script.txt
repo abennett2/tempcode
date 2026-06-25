@@ -1,7 +1,65 @@
 <content id="data-content">
 
     <style>
-        /* Insert your CSS overrides here */
+        /* ==================================================================== */
+        /* RESTORED CORE LIST STYLES (Required when using a Custom Template)  */
+        /* ==================================================================== */
+        .template--defaultList {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .template--listItem {
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 16px 0;
+            border-bottom: 1px solid #edebe9;
+        }
+
+        .template--listItem--result {
+            display: flex !important;
+            flex-direction: row !important;
+            gap: 16px;
+            flex: 1;
+        }
+
+        .template--listItem--contentContainer {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+
+        /* Forces the thumbnail box to stay visible and sized correctly */
+        .template--listItem--thumbnailContainer {
+            width: 120px !important;
+            height: 70px !important;
+            flex-shrink: 0;
+            margin-left: 20px;
+            display: block !important;
+        }
+
+        .thumbnail--image {
+            width: 120px;
+            height: 70px;
+            position: relative;
+            border-radius: 4px;
+            overflow: hidden;
+            background: #f3f2f1;
+        }
+
+        .thumbnail--image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* ==================================================================== */
+        /* USER CUSTOM STYLES                                                   */
+        /* ==================================================================== */
         .simpletags {
             display: inline-block;
             padding: 2px 5px;
@@ -15,7 +73,7 @@
             color: {{@root.theme.palette.themePrimary}};
         }
         
-        /* Custom styles for matching search words */
+        /* Custom styles for matching search words and SharePoint native tags */
         .list-excerpt strong,
         .list-excerpt mark,
         .list-excerpt c0,
@@ -28,12 +86,6 @@
             border-radius: 2px !important;
             display: inline-block;
         }
-        
-        {{#unless @root.properties.layoutProperties.showItemThumbnail}}
-        .template--listItem--result {
-            flex-basis: 100%!important;
-        }
-        {{/unless}}
     </style>
 
     <div class="template">
@@ -69,6 +121,7 @@
               </div>
             </div>
         </div>
+
         {{#if @root.data.promotedResults}}
         <ul class="template--defaultList template--promotedResults">
             {{#each @root.data.promotedResults as |promotedResult|}}
@@ -84,6 +137,7 @@
             {{/each}}
         </ul>
         {{/if}}
+
         <ul class="template--defaultList">
             {{#each data.items as |item|}}
                 <pnp-select 
@@ -92,9 +146,9 @@
                     data-is-selected="{{isItemSelected @root.selectedKeys @index}}">
 
                     <template id="content">
-
                         <li class="template--listItem">
                             {{#> resultTypes item=item}}
+                            
                             <div class="template--listItem--result">
                                 {{#if @root.properties.layoutProperties.showFileIcon}}
                                 {{#contains "['STS_Site','STS_Web']" (slot item @root.slots.contentclass)}}
@@ -103,6 +157,7 @@
                                     <pnp-iconfile class="template--listItem--icon" data-extension="{{slot item @root.slots.FileType}}" data-is-container="{{slot item @root.slots.IsFolder}}" data-size="32" data-theme-variant="{{JSONstringify @root.theme}}"></pnp-iconfile>
                                 {{/contains}}
                                 {{/if}}
+                                
                                 <div class="template--listItem--contentContainer">
                                     <span class="template--listItem--title example-themePrimary">
                                         <a href="{{slot item @root.slots.PreviewUrl}}" target="_blank" style="color:{{@root.theme.semanticColors.link}}" data-interception="off" rel="noopener noreferrer">{{slot item @root.slots.Title}}</a>
@@ -111,7 +166,7 @@
                                         {{getSummary (slot item @root.slots.Summary)}}
                                     </span>                        
                                     
-                                    <div class="list-excerpt">{{{getSummary "HitHighlightedSummary"}}}</div>
+                                    <div class="list-excerpt">{{{item.HitHighlightedSummary}}}</div>
                                     
                                     <div class="template--listItem--tags example-themePrimary">
                                         {{#if (slot item @root.slots.Tags)}}
@@ -145,17 +200,13 @@
                             <div class="template--listItem--thumbnailContainer" data-selection-disabled="true">
                                 <div class="thumbnail--image">
                                     <pnp-filepreview data-preview-url="{{slot item @root.slots.PreviewUrl}}" data-preview-image-url="{{slot item @root.slots.PreviewImageUrl}}" data-theme-variant="{{JSONstringify @root.theme}}">
-                                        <pnp-img alt='preview-image' width="120" 
-                                            src="{{#if (slot item @root.slots.PreviewImageUrl)}}{{slot item @root.slots.PreviewImageUrl}}{{else if item.ServerRedirectedPreviewURL}}{{item.ServerRedirectedPreviewURL}}{{/if}}" 
-                                            loading="lazy" data-error-image="{{@root.utils.defaultImage}}" />
+                                        <img alt='preview-image' 
+                                             src="{{#if (slot item @root.slots.PreviewImageUrl)}}{{slot item @root.slots.PreviewImageUrl}}{{else if item.ServerRedirectedPreviewURL}}{{item.ServerRedirectedPreviewURL}}{{else}}{{@root.utils.defaultImage}}{{/if}}" 
+                                             loading="lazy" />
                                     </pnp-filepreview>
-                                    <div class="thumbnail--hover">
-                                        <div>
-                                            <pnp-icon data-name="DocumentSearch" aria-hidden="true"></pnp-icon>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
+                            
                             {{/resultTypes}}
                         </li>
                     </template>
