@@ -15,13 +15,18 @@
             color: {{@root.theme.palette.themePrimary}};
         }
         
+        /* Custom styles for matching search words */
         .list-excerpt strong,
-        .list-excerpt mark {
-            background-color: #fff2a3;
-            color: #000;
-            font-weight: bold;
-            padding 0 2px;
-            border-radius: 2px;
+        .list-excerpt mark,
+        .list-excerpt c0,
+        .list-excerpt c1,
+        .list-excerpt c2 {
+            background-color: #fff2a3 !important; /* Soft yellow highlighter */
+            color: #000 !important;
+            font-weight: bold !important;
+            padding: 0 2px !important;
+            border-radius: 2px !important;
+            display: inline-block;
         }
         
         {{#unless @root.properties.layoutProperties.showItemThumbnail}}
@@ -102,43 +107,32 @@
                                     <span class="template--listItem--title example-themePrimary">
                                         <a href="{{slot item @root.slots.PreviewUrl}}" target="_blank" style="color:{{@root.theme.semanticColors.link}}" data-interception="off" rel="noopener noreferrer">{{slot item @root.slots.Title}}</a>
                                     </span>
-                                    <span>                            
+                                    <span>            
                                         {{getSummary (slot item @root.slots.Summary)}}
                                     </span>                        
-                                    <div class="list-excerpt">{{{getSummary HitHighlightedSummary}}}</div>
+                                    
+                                    <div class="list-excerpt">{{{getSummary "HitHighlightedSummary"}}}</div>
+                                    
                                     <div class="template--listItem--tags example-themePrimary">
                                         {{#if (slot item @root.slots.Tags)}}
                                             <pnp-icon data-name="Tag" aria-hidden="true" data-theme-variant="{{JSONstringify @root.theme}}"></pnp-icon>
                                             <div>
-
-                                                <!-- If the enableLocalization is on I assume that the Auto[property] is used -->
                                                 {{#if @root.properties.dataSourceProperties.enableLocalization}}
-                                                 
                                                     {{#each (split (slot item @root.slots.Tags) "ǂǂ") as |tag| }}
                                                     <div class="simpletags"> 
                                                         {{trim tag}}
                                                     </div>        
-                                                        
                                                     {{/each}}
-                                                    
                                                 {{else}}    
-                                                    <!-- If the enableLocalization is OFF I assume that the Auto[property] is NOT used -->
-                                                    <!-- Check if value contains taxonomy format (L0|#) to determine separator -->
                                                     {{#if (regex "L0\\|#" (slot item @root.slots.Tags))}}
-                                                        <!-- Taxonomy format: split by semicolon -->
                                                         {{#each (split (slot item @root.slots.Tags) ";") as |tag| }}
                                                         <div class="simpletags">
-															{{getTagName (trim tag)}}
-															<!-- Use this if you want the tags to be displayed as a search link -->
-															<!-- <i class="ms-Icon ms-Icon--MapPin" aria-hidden="true"></i> -->
-															<!-- <a href="?q=Tags:'{{getTagName (trim tag)}}" data-interception="off">{{getTagName (trim tag)}}</a> -->
-                                                            
+                                                            {{getTagName (trim tag)}}
                                                         </div>
                                                         {{/each}}
                                                     {{else}}
-                                                        <!-- Plain text format: display as-is -->
                                                         <div class="simpletags">
-															{{trim (slot item @root.slots.Tags)}}
+                                                            {{trim (slot item @root.slots.Tags)}}
                                                         </div>
                                                     {{/if}}
                                                 {{/if}}
@@ -147,11 +141,13 @@
                                     </div>
                                 </div>
                             </div>
-                            {{#if @root.properties.layoutProperties.showItemThumbnail}}
+                            
                             <div class="template--listItem--thumbnailContainer" data-selection-disabled="true">
                                 <div class="thumbnail--image">
                                     <pnp-filepreview data-preview-url="{{slot item @root.slots.PreviewUrl}}" data-preview-image-url="{{slot item @root.slots.PreviewImageUrl}}" data-theme-variant="{{JSONstringify @root.theme}}">
-                                        <pnp-img alt='preview-image' width="120" src="{{slot item @root.slots.PreviewImageUrl}}" loading="lazy" data-error-image="{{@root.utils.defaultImage}}" />
+                                        <pnp-img alt='preview-image' width="120" 
+                                            src="{{#if (slot item @root.slots.PreviewImageUrl)}}{{slot item @root.slots.PreviewImageUrl}}{{else if item.ServerRedirectedPreviewURL}}{{item.ServerRedirectedPreviewURL}}{{/if}}" 
+                                            loading="lazy" data-error-image="{{@root.utils.defaultImage}}" />
                                     </pnp-filepreview>
                                     <div class="thumbnail--hover">
                                         <div>
@@ -160,7 +156,7 @@
                                     </div>
                                 </div>
                             </div>
-                            {{/if}} {{/resultTypes}}
+                            {{/resultTypes}}
                         </li>
                     </template>
 
@@ -176,44 +172,4 @@
         {{/gt}} {{/if}}
 
     </div>
-</content>
-
-<content id="placeholder-content">
-    <style>
-        /* Insert your CSS overrides here */
-    </style>
-
-    <div class="placeholder">
-        {{#if @root.properties.showResultsCount}}
-        <div class="template--resultCount">
-            <span class="placeholder--shimmer placeholder--line" style="width: 20%"></span>
-        </div>
-        {{/if}}
-        <ul class="template--defaultList">
-            {{#times @root.properties.paging.itemsCountPerPage}}
-            <li class="template--listItem" tabindex="0">
-                <div class="template--listItem--result">
-                    {{#if @root.properties.layoutProperties.showFileIcon}}
-                    <div class="template--listItem--icon placeholder--shimmer "></div>
-                    {{/if}}
-                    <div class="template--listItem--contentContainer">
-                        <span class="placeholder--shimmer placeholder--line" style="width: 60%"></span>
-                        <span class="placeholder--shimmer placeholder--line" style="width: 100%"></span>
-                        <span class="placeholder--shimmer placeholder--line" style="width: 100%"></span>
-                        <span class="placeholder--shimmer placeholder--line" style="width: 35%"></span>
-                        <span class="placeholder--shimmer placeholder--line" style="width: 20%"></span>
-                    </div>
-                </div>
-                {{#if @root.properties.layoutProperties.showItemThumbnail}}
-                <div class="template--listItem--thumbnailContainer">
-                    <div class="thumbnail--image">
-                        <div class="placeholder--shimmer" style="width: 120px;height: 70px;"></div>
-                    </div>
-                </div>
-                {{/if}}
-            </li>
-            {{/times}}
-        </ul>
-    </div>
-
 </content>
